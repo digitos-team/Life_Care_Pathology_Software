@@ -1,16 +1,16 @@
-import path from 'path';
-import { fileURLToPath } from 'url';
+import path from "path";
+import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const LOGO_PATH = path.join(__dirname, '..', 'assets', 'logo.jpeg');
+const LOGO_PATH = path.join(__dirname, "..", "assets", "logo.jpeg");
 
 export const generateExpenseReportPDF = (
   doc,
   reportData,
   type,
   year,
-  month
+  month,
 ) => {
   const accentColor = "#2c3e50";
   const borderColor = "#eeeeee";
@@ -29,22 +29,33 @@ export const generateExpenseReportPDF = (
     .font("Helvetica")
     .fillColor("#7f8c8d")
     .text(
-      `Type: ${type.toUpperCase()} | Year: ${year}${month ? ` | Month: ${month}` : ""
+      `Type: ${type.toUpperCase()} | Year: ${year}${
+        month ? ` | Month: ${month}` : ""
       }`,
-      { align: "center" }
+      { align: "center" },
     );
 
   doc.moveDown(1.5);
-  doc.strokeColor(borderColor).lineWidth(0.5).moveTo(30, doc.y).lineTo(570, doc.y).stroke();
+  doc
+    .strokeColor(borderColor)
+    .lineWidth(0.5)
+    .moveTo(30, doc.y)
+    .lineTo(570, doc.y)
+    .stroke();
   doc.moveDown(1);
 
   let grandTotal = 0;
 
   // 2. Iterate through Time Units (Days or Months)
   reportData.forEach((group) => {
-    const timeLabel = type === "monthly" ? `Day ${group._id}` : `Month ${group._id}`;
+    const timeLabel =
+      type === "monthly" ? `Day ${group._id}` : `Month ${group._id}`;
 
-    doc.fillColor(accentColor).fontSize(12).font("Helvetica-Bold").text(timeLabel, 35);
+    doc
+      .fillColor(accentColor)
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .text(timeLabel, 35);
     doc.moveDown(0.5);
 
     // Table Header for this group
@@ -73,7 +84,10 @@ export const generateExpenseReportPDF = (
           doc.text("Title / Particulars", 40, currentY + 6);
           doc.text("Category", 230, currentY + 6);
           doc.text("Dr / Supplier", 350, currentY + 6);
-          doc.text("Amount (INR)", 480, currentY + 6, { width: 80, align: "right" });
+          doc.text("Amount (INR)", 480, currentY + 6, {
+            width: 80,
+            align: "right",
+          });
           currentY += 20;
         }
 
@@ -90,17 +104,30 @@ export const generateExpenseReportPDF = (
         doc.text(ref, 350, currentY + 6, { width: 120 });
 
         // Amount
-        doc.font("Helvetica-Bold").text(item.amount.toFixed(2), 480, currentY + 6, { width: 80, align: "right" });
+        doc
+          .font("Helvetica-Bold")
+          .text(item.amount.toFixed(2), 480, currentY + 6, {
+            width: 80,
+            align: "right",
+          });
 
         currentY += 22;
-        doc.strokeColor("#f1f2f6").lineWidth(0.2).moveTo(35, currentY).lineTo(565, currentY).stroke();
+        doc
+          .strokeColor("#f1f2f6")
+          .lineWidth(0.2)
+          .moveTo(35, currentY)
+          .lineTo(565, currentY)
+          .stroke();
       });
     });
 
     // Subtotal for this period
     doc.moveDown(0.5);
     doc.fillColor(accentColor).font("Helvetica-Bold").fontSize(9);
-    doc.text(`Total for ${timeLabel}: INR ${group.totalForPeriod.toFixed(2)}`, { align: "right", right: 25 });
+    doc.text(`Total for ${timeLabel}: INR ${group.totalForPeriod.toFixed(2)}`, {
+      align: "right",
+      right: 25,
+    });
     doc.moveDown(1.5);
 
     grandTotal += group.totalForPeriod;
@@ -113,14 +140,21 @@ export const generateExpenseReportPDF = (
   doc.rect(350, finalY, 215, 30).fill(accentColor).stroke();
   doc.fillColor("white").fontSize(12).font("Helvetica-Bold");
   doc.text("GRAND TOTAL", 360, finalY + 10);
-  doc.text(`INR ${grandTotal.toFixed(2)}`, 480, finalY + 10, { width: 80, align: "right" });
+  doc.text(`INR ${grandTotal.toFixed(2)}`, 480, finalY + 10, {
+    width: 80,
+    align: "right",
+  });
 
   // 4. Footer
   doc.moveDown(4);
-  doc.fillColor("gray").fontSize(8).font("Helvetica-Oblique").text(
-    "This is a system-generated expense report and does not require a physical signature.",
-    { align: "center", width: 530 }
-  );
+  doc
+    .fillColor("gray")
+    .fontSize(8)
+    .font("Helvetica-Oblique")
+    .text(
+      "This is a system-generated expense report and does not require a physical signature.",
+      { align: "center", width: 530 },
+    );
 };
 
 export const generateBillPDF = (doc, bill, lab) => {
@@ -163,37 +197,24 @@ export const generateBillPDF = (doc, bill, lab) => {
 
   // Safety checks for patient data
   const patientName = bill.patientId?.fullName || "N/A";
-  const patientIdDisplay = bill.patientId?.patientId || bill.patientId?._id?.toString().slice(-8).toUpperCase() || "N/A";
+  const patientIdDisplay =
+    bill.patientId?.patientId ||
+    bill.patientId?._id?.toString().slice(-8).toUpperCase() ||
+    "N/A";
   const patientAge = bill.patientId?.age || "N/A";
   const patientGender = bill.patientId?.gender || "N/A";
   const patientPhone = bill.patientId?.phone || "N/A";
   const doctorName = bill.testOrderId?.doctor?.name || "Self";
 
-  doc.text(
-    `Patient Name :  ${patientName}`,
-    patientX,
-    infoTop + 18
-  );
-  doc.text(
-    `Patient ID (UHID) :  ${patientIdDisplay}`,
-    patientX,
-    infoTop + 31
-  );
+  doc.text(`Patient Name :  ${patientName}`, patientX, infoTop + 18);
+  doc.text(`Patient ID (UHID) :  ${patientIdDisplay}`, patientX, infoTop + 31);
   doc.text(
     `Age & Gender :  ${patientAge} / ${patientGender}`,
     patientX,
-    infoTop + 44
+    infoTop + 44,
   );
-  doc.text(
-    `Mobile Number :  ${patientPhone}`,
-    patientX,
-    infoTop + 57
-  );
-  doc.text(
-    `Referred By :  ${doctorName}`,
-    patientX,
-    infoTop + 70
-  );
+  doc.text(`Mobile Number :  ${patientPhone}`, patientX, infoTop + 57);
+  doc.text(`Referred By :  ${doctorName}`, patientX, infoTop + 70);
 
   // Bill Details section (right aligned)
   doc.fontSize(10).font("Helvetica-Bold").text("BILL DETAILS:", invoiceX);
@@ -204,7 +225,7 @@ export const generateBillPDF = (doc, bill, lab) => {
   doc.text(
     `${new Date(bill.createdAt).toLocaleDateString("en-IN")}`,
     invoiceX + 100,
-    infoTop + 31
+    infoTop + 31,
   );
   doc.text(`Payment Status :`, invoiceX, infoTop + 44);
   doc.text(`${bill.status}`, invoiceX + 100, infoTop + 44);
@@ -212,7 +233,7 @@ export const generateBillPDF = (doc, bill, lab) => {
   doc.text(
     `${bill.paymentId?.paymentMethod || "CASH"}`,
     invoiceX + 100,
-    infoTop + 57
+    infoTop + 57,
   );
 
   doc.moveDown(8);
@@ -270,7 +291,7 @@ export const generateBillPDF = (doc, bill, lab) => {
     .fill(accentColor)
     .stroke();
   doc.fillColor("white").font("Helvetica-Bold").fontSize(11);
-  const totalLabel = bill.status === 'PAID' ? "Bill Paid" : "Total Amount Due";
+  const totalLabel = bill.status === "PAID" ? "Bill Paid" : "Total Amount Due";
   doc.text(totalLabel, summaryX + 10, currentY + 6, {
     width: 120,
     align: "left",
@@ -303,7 +324,7 @@ export const generateBillingReportPDF = (
   reportData,
   type,
   year,
-  month
+  month,
 ) => {
   const accentColor = "#2c3e50";
   const borderColor = "#eeeeee";
@@ -318,9 +339,10 @@ export const generateBillingReportPDF = (
   doc.moveDown(0.5);
   doc.fontSize(10).font("Helvetica").fillColor("gray");
   doc.text(
-    `Report Type: ${type.toUpperCase()} | Year: ${year}${month ? ` | Month: ${month}` : ""
+    `Report Type: ${type.toUpperCase()} | Year: ${year}${
+      month ? ` | Month: ${month}` : ""
     }`,
-    { align: "center" }
+    { align: "center" },
   );
 
   doc.moveDown(1);
@@ -382,7 +404,7 @@ export const generateBillingReportPDF = (
       `INR ${group.pendingAmount.toFixed(2)}`,
       valueColumnX,
       startY + 24,
-      { width: 90, align: "right" }
+      { width: 90, align: "right" },
     );
 
     grandTotal += group.totalAmount;
@@ -447,16 +469,18 @@ export const generateBillingReportPDF = (
     .font("Helvetica")
     .text(
       "This is an automated financial summary report generated by the pathology lab system.",
-      { align: "center" }
+      { align: "center" },
     );
 };
 
 export const generateTestReportPDF = (doc, order, lab) => {
-  // Colors matching Life Care format
-  const blueColor = "#1e3a8a";
-  const redColor = "#dc2626";
-  const blackColor = "#000000";
-  const grayColor = "#666666";
+  const primaryBlue = "#1565c0";
+  const accentRed = "#d32f2f";
+  const darkBlue = "#0d47a1";
+  const textDark = "#263238";
+  const textGray = "#546e7a";
+  const lightGray = "#f8f9fa";
+  const borderGray = "#dee2e6";
 
   const pageWidth = doc.page.width;
   const pageHeight = doc.page.height;
@@ -464,280 +488,306 @@ export const generateTestReportPDF = (doc, order, lab) => {
   const rightMargin = pageWidth - 40;
   const contentWidth = rightMargin - leftMargin;
 
-  // Helper: page break handler
-  const ensureSpace = (y, space = 30) => {
-    if (y + space > pageHeight - 120) {
-      doc.addPage();
-      return 100;
-    }
-    return y;
-  };
+  /* ================= HEADER ================= */
 
-  /* ================== HEADER SECTION ================== */
+  doc.rect(0, 0, pageWidth, 6).fill(accentRed);
 
-  // Add logo image
-  try {
-    doc.image(LOGO_PATH, leftMargin, 20, { width: 50, height: 50 });
-  } catch (e) {
-    console.log('Logo not found, continuing without image');
-  }
+  doc.image(LOGO_PATH, leftMargin, 12, { width: 45, height: 45 });
 
-  // Left side - Logo text next to image
   doc
-    .fillColor(redColor)
+    .fillColor(accentRed)
     .font("Helvetica-Bold")
-    .fontSize(22)
-    .text("Life Care", leftMargin + 55, 25);
+    .fontSize(20)
+    .text("Life Care Diagnostic", leftMargin + 60, 14);
 
   doc
-    .fillColor(redColor)
-    .font("Helvetica")
-    .fontSize(8)
-    .text("®", leftMargin + 140, 23);
+    .fillColor(primaryBlue)
+    .fontSize(11)
+    .text("Clinical Laboratory", leftMargin + 60, 38);
 
   doc
-    .fillColor(blueColor)
+    .fontSize(7)
+    .fillColor(primaryBlue)
+    .text(
+      "Fully Automated Computerized Clinical Lab\nHealth Checkup • ECG • Home Visit • Sunday Open",
+      rightMargin - 160,
+      16,
+      { width: 160, align: "right" },
+    );
+
+  doc.rect(rightMargin - 160, 46, 160, 16).fill(primaryBlue);
+  doc
+    .fillColor("white")
     .font("Helvetica-Bold")
-    .fontSize(10)
-    .text("Diagnostic", leftMargin + 55, 48);
-
-  // Right side - Clinical Laboratory info
-  doc
-    .fillColor(blueColor)
-    .font("Helvetica-Bold")
-    .fontSize(16)
-    .text("Clinical Laboratory", rightMargin - 200, 25, { width: 200, align: "right" });
-
-  doc
-    .fillColor(blueColor)
-    .font("Helvetica")
-    .fontSize(8);
-
-  const bulletPoints = [
-    "• Fully Automated Computerised Clinical Lab",
-    "• Health Check up for company • ECG",
-    "• Home Visit • Sunday Open"
-  ];
-
-  let bulletY = 45;
-  bulletPoints.forEach(point => {
-    doc.text(point, rightMargin - 200, bulletY, { width: 200, align: "right" });
-    bulletY += 10;
-  });
-
-  // Separator line
-  doc
-    .strokeColor(blueColor)
-    .lineWidth(1)
-    .moveTo(leftMargin, 85)
-    .lineTo(rightMargin - 20, 85)
-    .stroke();
-
-  /* ================== PATIENT INFO SECTION ================== */
-
-  let currentY = 95;
-
-  // Patient info background
-  doc.rect(leftMargin, currentY, contentWidth - 20, 60).fill("#f8fafc");
-
-  // Left column - Patient details
-  const labelWidth = 80;
-  const valueX = leftMargin + labelWidth + 5;
-
-  doc.fillColor(blueColor).font("Helvetica-Bold").fontSize(9);
-  doc.text("Reg No:", leftMargin + 5, currentY + 5);
-  doc.fillColor(blackColor).font("Helvetica").text(order._id?.toString().slice(-6).toUpperCase() || "000000", valueX, currentY + 5);
-
-  doc.fillColor(blueColor).font("Helvetica-Bold");
-  doc.text("Patient Name:", leftMargin + 5, currentY + 17);
-  doc.fillColor(blackColor).font("Helvetica").text(order.patientId?.fullName?.toUpperCase() || "N/A", valueX, currentY + 17);
-
-  doc.fillColor(blueColor).font("Helvetica-Bold");
-  doc.text("Age/Gender:", leftMargin + 5, currentY + 29);
-  doc.fillColor(blackColor).font("Helvetica").text(`${order.patientId?.age || "N/A"} Years/${order.patientId?.gender || "N/A"}`, valueX, currentY + 29);
-
-  doc.fillColor(blueColor).font("Helvetica-Bold");
-  doc.text("Lab Care:", leftMargin + 5, currentY + 41);
-  doc.fillColor(blackColor).font("Helvetica").text(lab?.labName || "Life Care Diagnostic", valueX, currentY + 41);
-
-  doc.fillColor(blueColor).font("Helvetica-Bold");
-  doc.text("Ref by:", leftMargin + 5, currentY + 53);
-  doc.fillColor(blackColor).font("Helvetica").text(order.doctor?.name || "SELF", valueX, currentY + 53);
-
-  // Right column - Dates
-  const rightColX = pageWidth / 2 + 20;
-  const rightValueX = rightColX + 120;
-
-  doc.fillColor(blueColor).font("Helvetica-Bold");
-  doc.text("Bill Date & Time:", rightColX, currentY + 5);
-  doc.fillColor(blackColor).font("Helvetica").text(
-    new Date(order.orderDate).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }),
-    rightValueX, currentY + 5
-  );
-
-  doc.fillColor(blueColor).font("Helvetica-Bold");
-  doc.text("Collection Date & Time:", rightColX, currentY + 17);
-  doc.fillColor(blackColor).font("Helvetica").text(
-    new Date(order.orderDate).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }),
-    rightValueX, currentY + 17
-  );
-
-  doc.fillColor(blueColor).font("Helvetica-Bold");
-  doc.text("Authenticate Date & Time:", rightColX, currentY + 29);
-  doc.fillColor(blackColor).font("Helvetica").text(
-    new Date().toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }),
-    rightValueX, currentY + 29
-  );
-
-  currentY += 70;
-
-  /* ================== TEST RESULTS SECTION ================== */
-
-  // Group tests by category
-  const categories = [...new Set(order.tests.map(t => t.testId?.category || "TEST REPORT"))];
-
-  categories.forEach(category => {
-    currentY = ensureSpace(currentY, 50);
-
-    // Category header
-    doc
-      .fillColor(blueColor)
-      .font("Helvetica-Bold")
-      .fontSize(12)
-      .text(category.toUpperCase(), leftMargin, currentY, {
-        width: contentWidth - 20,
-        align: "center",
-        underline: true
-      });
-
-    currentY += 20;
-
-    // Table header
-    doc.rect(leftMargin, currentY, contentWidth - 20, 18).fill("#e0e7ff");
-
-    doc.fillColor(blueColor).font("Helvetica-Bold").fontSize(9);
-    doc.text("TEST", leftMargin + 5, currentY + 5);
-    doc.text("RESULT", leftMargin + 180, currentY + 5);
-    doc.text("UNIT", leftMargin + 280, currentY + 5);
-    doc.text("BIOLOGICAL REFER RANGE", leftMargin + 350, currentY + 5);
-
-    currentY += 22;
-
-    // Filter tests for this category
-    const categoryTests = order.tests.filter(t => (t.testId?.category || "TEST REPORT") === category);
-
-    categoryTests.forEach(test => {
-      currentY = ensureSpace(currentY, 20);
-
-      // Test name as sub-header
-      doc
-        .fillColor(blueColor)
-        .font("Helvetica-Bold")
-        .fontSize(9)
-        .text(test.testName?.toUpperCase() || "TEST", leftMargin + 5, currentY);
-
-      currentY += 14;
-
-      // Test parameters/results
-      if (test.results && test.results.length > 0) {
-        test.results.forEach(param => {
-          currentY = ensureSpace(currentY, 14);
-
-          doc.fillColor(blueColor).font("Helvetica").fontSize(8);
-          doc.text(param.parameterName || "-", leftMargin + 10, currentY);
-
-          doc.fillColor(blackColor).font("Helvetica-Bold");
-          doc.text(param.value || "-", leftMargin + 180, currentY);
-
-          doc.fillColor(grayColor).font("Helvetica");
-          doc.text(param.unit || "-", leftMargin + 280, currentY);
-
-          // Reference range
-          let refRange = "-";
-          if (param.referenceRange) {
-            if (typeof param.referenceRange === "object" && param.referenceRange !== null) {
-              refRange = `${param.referenceRange.min || ""} - ${param.referenceRange.max || ""}`;
-            } else {
-              refRange = param.referenceRange;
-            }
-          }
-          doc.text(refRange, leftMargin + 350, currentY);
-
-          currentY += 12;
-        });
-      }
-
-      currentY += 5;
+    .fontSize(9)
+    .text("LABORATORY REPORT", rightMargin - 160, 50, {
+      width: 160,
+      align: "center",
     });
 
-    currentY += 10;
+  doc
+    .strokeColor(borderGray)
+    .lineWidth(1)
+    .moveTo(leftMargin, 70)
+    .lineTo(rightMargin, 70)
+    .stroke();
+
+  /* ================= PATIENT INFO ================= */
+
+  let currentY = 78;
+
+  doc
+    .fillColor(primaryBlue)
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .text("PATIENT INFORMATION", leftMargin, currentY);
+
+  doc
+    .strokeColor(accentRed)
+    .lineWidth(2)
+    .moveTo(leftMargin, currentY + 12)
+    .lineTo(leftMargin + 130, currentY + 12)
+    .stroke();
+
+  currentY += 18;
+
+  doc.rect(leftMargin, currentY, contentWidth, 50).fill(lightGray);
+  doc.rect(leftMargin, currentY, contentWidth, 50).stroke(borderGray);
+
+  doc.fontSize(8).font("Helvetica-Bold").fillColor(textGray);
+
+  const infoLeftX = leftMargin + 10;
+  const infoRightX = pageWidth / 2 + 10;
+  let infoY = currentY + 8;
+
+  doc.text("Patient Name:", infoLeftX, infoY);
+  doc
+    .font("Helvetica")
+    .fillColor(textDark)
+    .text(
+      order.patientId?.fullName?.toUpperCase() || "N/A",
+      infoLeftX + 90,
+      infoY,
+    );
+
+  infoY += 12;
+  doc
+    .font("Helvetica-Bold")
+    .fillColor(textGray)
+    .text("Age / Gender:", infoLeftX, infoY);
+  doc
+    .font("Helvetica")
+    .fillColor(textDark)
+    .text(
+      `${order.patientId?.age || "N/A"} / ${order.patientId?.gender || "N/A"}`,
+      infoLeftX + 90,
+      infoY,
+    );
+
+  infoY += 12;
+  doc
+    .font("Helvetica-Bold")
+    .fillColor(textGray)
+    .text("Patient ID:", infoLeftX, infoY);
+  doc
+    .font("Helvetica")
+    .fillColor(textDark)
+    .text(order.patientId?.patientId || "N/A", infoLeftX + 90, infoY);
+
+  infoY = currentY + 8;
+  doc
+    .font("Helvetica-Bold")
+    .fillColor(textGray)
+    .text("Ref. Doctor:", infoRightX, infoY);
+  doc
+    .font("Helvetica")
+    .fillColor(textDark)
+    .text(order.doctor?.name || "SELF", infoRightX + 95, infoY);
+
+  infoY += 12;
+  doc
+    .font("Helvetica-Bold")
+    .fillColor(textGray)
+    .text("Sample Collected:", infoRightX, infoY);
+  doc
+    .font("Helvetica")
+    .fillColor(textDark)
+    .text(
+      new Date(order.orderDate).toLocaleString("en-IN"),
+      infoRightX + 95,
+      infoY,
+    );
+
+  infoY += 12;
+  doc
+    .font("Helvetica-Bold")
+    .fillColor(textGray)
+    .text("Report Date:", infoRightX, infoY);
+  doc
+    .font("Helvetica")
+    .fillColor(textDark)
+    .text(new Date().toLocaleString("en-IN"), infoRightX + 95, infoY);
+
+  currentY += 62;
+
+  /* ================= TEST RESULTS ================= */
+
+  doc
+    .fillColor(primaryBlue)
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .text("TEST RESULTS", leftMargin, currentY);
+
+  doc
+    .strokeColor(accentRed)
+    .lineWidth(2)
+    .moveTo(leftMargin, currentY + 12)
+    .lineTo(leftMargin + 90, currentY + 12)
+    .stroke();
+
+  currentY += 18;
+
+  // Table Header
+  doc.rect(leftMargin, currentY, contentWidth, 16).fill(darkBlue);
+  doc.fillColor("white").font("Helvetica-Bold").fontSize(8);
+
+  doc.text("Test Name", leftMargin + 6, currentY + 5, { width: 200 });
+  doc.text("Result", leftMargin + 220, currentY + 5);
+  doc.text("Unit", leftMargin + 300, currentY + 5);
+  doc.text("Reference Range", leftMargin + 370, currentY + 5);
+
+  currentY += 18;
+
+  /* ===== TESTS WITH RESULTS ===== */
+  const tests = order.tests.slice(0, 4); // Limit to 4 tests for single page
+
+  let paramY = currentY;
+
+  tests.forEach((test, index) => {
+    const rowBg = index % 2 === 0 ? "#fafafa" : "#ffffff";
+
+    // Print TEST NAME first (bold, blue)
+    doc
+      .fillColor(primaryBlue)
+      .font("Helvetica-Bold")
+      .fontSize(8.5)
+      .text(
+        test.testName || test.testId?.testName || "Test",
+        leftMargin + 6,
+        paramY,
+        {
+          width: 200,
+          lineBreak: false,
+        },
+      );
+
+    // Move Y down after test name
+    paramY += 11;
+
+    // If test has results/parameters, print them
+    if (test.results && test.results.length > 0) {
+      test.results.forEach((param) => {
+        // Parameter name (indented)
+        doc
+          .fillColor(textGray)
+          .font("Helvetica")
+          .fontSize(7)
+          .text(`  ${param.parameterName || "-"}`, leftMargin + 8, paramY, {
+            width: 195,
+            lineBreak: false,
+          });
+
+        // Result value
+        doc
+          .fillColor(textDark)
+          .font("Helvetica-Bold")
+          .fontSize(7.5)
+          .text(param.value || "-", leftMargin + 220, paramY, {
+            lineBreak: false,
+          });
+
+        // Unit
+        doc
+          .fillColor(textGray)
+          .fontSize(7)
+          .text(param.unit || "-", leftMargin + 300, paramY, {
+            lineBreak: false,
+          });
+
+        // Reference range
+        let refRange = "-";
+        if (param.referenceRange) {
+          if (
+            typeof param.referenceRange === "object" &&
+            param.referenceRange !== null
+          ) {
+            refRange = `${param.referenceRange.min || ""} - ${param.referenceRange.max || ""}`;
+          } else {
+            refRange = param.referenceRange;
+          }
+        }
+        doc.text(refRange, leftMargin + 370, paramY, {
+          width: 125,
+          lineBreak: false,
+        });
+
+        paramY += 11; // Move down after each parameter
+      });
+    } else {
+      // No results - show "Pending"
+      doc
+        .fillColor(textGray)
+        .fontSize(7)
+        .text("Pending", leftMargin + 220, paramY, { lineBreak: false });
+      paramY += 11; // Move down after pending message
+    }
+
+    paramY += 5; // Extra space after test
   });
 
-  /* ================== FOOTER SECTION (ALL PAGES) ================== */
+  /* ================= FOOTER ================= */
 
-  const pageRange = doc.bufferedPageRange();
+  const footerY = pageHeight - 70;
 
-  for (let i = 0; i < pageRange.count; i++) {
-    doc.switchToPage(i);
+  doc
+    .moveTo(leftMargin, footerY)
+    .lineTo(rightMargin, footerY)
+    .stroke(borderGray);
 
-    const footerY = pageHeight - 100;
+  doc
+    .fontSize(7)
+    .fillColor(textGray)
+    .text(
+      "This report is electronically generated and does not require a signature.",
+      leftMargin,
+      footerY + 6,
+      { width: contentWidth, align: "center" },
+    );
 
-    // Separator line
-    doc
-      .strokeColor(blueColor)
-      .lineWidth(0.5)
-      .moveTo(leftMargin, footerY)
-      .lineTo(rightMargin - 20, footerY)
-      .stroke();
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(7)
+    .fillColor(textDark)
+    .text("LAB TECHNICIAN", leftMargin + 40, footerY + 24);
 
-    // Left signature - Lab Technician
-    doc
-      .fillColor(blackColor)
-      .font("Helvetica")
-      .fontSize(8)
-      .text("_____________________", leftMargin, footerY + 5);
-    doc.font("Helvetica-Bold").text("Lab Technician", leftMargin, footerY + 18);
-
-    // Right signature - Pathologist
-    doc
-      .font("Helvetica")
-      .text("_____________________", rightMargin - 150, footerY + 5);
-    doc.font("Helvetica-Bold").text("Pathologist", rightMargin - 150, footerY + 18);
-    doc.font("Helvetica").fontSize(7).text("M.D. (Pathology)", rightMargin - 150, footerY + 28);
-
-    // Bottom address bar
-    const addressY = pageHeight - 55;
-    doc.rect(leftMargin - 10, addressY, contentWidth, 20).fill(blueColor);
-
-    doc
-      .fillColor("white")
-      .font("Helvetica")
-      .fontSize(7)
-      .text(
-        `Add: ${lab?.address || "Life Care Diagnostic Laboratory"} | Ph: ${lab?.contact || "N/A"} | Email: ${lab?.email || "N/A"}`,
-        leftMargin, addressY + 6,
-        { width: contentWidth - 20, align: "center" }
-      );
-
-    // Disclaimer
-    doc
-      .fillColor(grayColor)
-      .font("Helvetica-Oblique")
-      .fontSize(6)
-      .text(
-        "These are only Laboratory & Technical Test Results. These are not Medical Diagnostic Results for case pattern diagnosis, confirm diagnosis & clinical finding.",
-        leftMargin, pageHeight - 30,
-        { width: contentWidth - 20, align: "center" }
-      );
-  }
+  doc.text("PATHOLOGIST", rightMargin - 120, footerY + 24);
 };
 
-export const generateDoctorCommissionReportPDF = (doc, data, doctorName, startDate, endDate) => {
+export const generateDoctorCommissionReportPDF = (
+  doc,
+  data,
+  doctorName,
+  startDate,
+  endDate,
+) => {
   const accentColor = "#2c3e50";
   const borderColor = "#cccccc";
 
   // 1. Title
-  doc.fontSize(18).fillColor(accentColor).text("Doctor Commission Report", { align: "center" });
+  doc
+    .fontSize(18)
+    .fillColor(accentColor)
+    .text("Doctor Commission Report", { align: "center" });
   doc.moveDown(0.5);
 
   // 2. Metadata
@@ -745,13 +795,21 @@ export const generateDoctorCommissionReportPDF = (doc, data, doctorName, startDa
   doc.text(`Doctor Name: ${doctorName}`, { align: "center" });
 
   if (startDate && endDate) {
-    doc.text(`Period: ${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`, { align: "center" });
+    doc.text(
+      `Period: ${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`,
+      { align: "center" },
+    );
   } else {
     doc.text(`Period: All Time`, { align: "center" });
   }
 
   doc.moveDown();
-  doc.lineWidth(0.5).strokeColor(borderColor).moveTo(30, doc.y).lineTo(570, doc.y).stroke();
+  doc
+    .lineWidth(0.5)
+    .strokeColor(borderColor)
+    .moveTo(30, doc.y)
+    .lineTo(570, doc.y)
+    .stroke();
   doc.moveDown();
 
   // 3. Table Header
@@ -775,7 +833,7 @@ export const generateDoctorCommissionReportPDF = (doc, data, doctorName, startDa
   // 4. Data Rows
   doc.font("Helvetica").fontSize(9);
 
-  data.forEach(item => {
+  data.forEach((item) => {
     // Check page break
     if (currentY > doc.page.height - 100) {
       doc.addPage();
@@ -791,20 +849,41 @@ export const generateDoctorCommissionReportPDF = (doc, data, doctorName, startDa
     }
 
     doc.text(new Date(item.date).toLocaleDateString(), colX.date, currentY);
-    doc.text(item.patientName ? item.patientName.substring(0, 18) : "N/A", colX.patient, currentY);
-    doc.text(item.testOrder ? item.testOrder.substring(0, 25) : "N/A", colX.tests, currentY);
-    doc.text((item.totalBillAmount || 0).toFixed(2), colX.bill, currentY, { width: 60, align: "right" });
-    doc.text((item.commissionAmount || 0).toFixed(2), colX.comm, currentY, { width: 60, align: "right" });
+    doc.text(
+      item.patientName ? item.patientName.substring(0, 18) : "N/A",
+      colX.patient,
+      currentY,
+    );
+    doc.text(
+      item.testOrder ? item.testOrder.substring(0, 25) : "N/A",
+      colX.tests,
+      currentY,
+    );
+    doc.text((item.totalBillAmount || 0).toFixed(2), colX.bill, currentY, {
+      width: 60,
+      align: "right",
+    });
+    doc.text((item.commissionAmount || 0).toFixed(2), colX.comm, currentY, {
+      width: 60,
+      align: "right",
+    });
 
-    totalCommission += (item.commissionAmount || 0);
+    totalCommission += item.commissionAmount || 0;
     currentY += 20;
-    doc.lineWidth(0.1).strokeColor("#eeeeee").moveTo(30, currentY - 5).lineTo(570, currentY - 5).stroke();
+    doc
+      .lineWidth(0.1)
+      .strokeColor("#eeeeee")
+      .moveTo(30, currentY - 5)
+      .lineTo(570, currentY - 5)
+      .stroke();
   });
 
   // 5. Total
   doc.moveDown();
   doc.font("Helvetica-Bold").fontSize(12).fillColor(accentColor);
-  doc.text(`Total Commission: INR ${totalCommission.toFixed(2)}`, { align: "right" });
+  doc.text(`Total Commission: INR ${totalCommission.toFixed(2)}`, {
+    align: "right",
+  });
 
   // 6. Footer section
   doc.fillColor("black").font("Helvetica").fontSize(8);
@@ -814,7 +893,11 @@ export const generateDoctorCommissionReportPDF = (doc, data, doctorName, startDa
   for (let i = 0; i < range.count; i++) {
     doc.switchToPage(i);
     const footerY = doc.page.height - 50;
-    doc.text(`Page ${i + 1} of ${range.count}`, 30, footerY, { align: "center" });
-    doc.text(`Generated on ${new Date().toLocaleString()}`, 30, footerY + 10, { align: "center" });
+    doc.text(`Page ${i + 1} of ${range.count}`, 30, footerY, {
+      align: "center",
+    });
+    doc.text(`Generated on ${new Date().toLocaleString()}`, 30, footerY + 10, {
+      align: "center",
+    });
   }
 };

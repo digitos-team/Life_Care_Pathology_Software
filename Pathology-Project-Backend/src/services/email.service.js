@@ -6,24 +6,27 @@ export const sendReportEmail = async ({ to, pdfPath, patientName }) => {
     service: "gmail",
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    }
+      pass: process.env.EMAIL_PASS,
+    },
   });
 
   await transporter.sendMail({
-    from: `"Digitos Pathology" <${process.env.EMAIL_USER}>`,
+    from: `"Life Care Diagnostic" <${process.env.EMAIL_USER}>`,
     to,
-    subject: "Your Pathology Report",
+    subject: "Your Laboratory Test Report - Life Care Diagnostic",
     html: `
       <p>Dear ${patientName},</p>
-      <p>Your pathology report is attached.</p>
-      <p>Regards,<br/>Digitos Pathology Team</p>
+      <p>Your laboratory test report is attached to this email.</p>
+      <p><strong>Life Care Diagnostic</strong><br/>
+      Clinical Laboratory<br/>
+      Thank you for choosing our services.</p>
+      <p>Best Regards,<br/><strong>Life Care Diagnostic Team</strong></p>
     `,
     attachments: [
       {
         filename: "Lab_Report.pdf",
-        path: pdfPath
-      }
-    ]
+        path: pdfPath,
+      },
+    ],
   });
-}
+};
