@@ -1,0 +1,139 @@
+import React from 'react';
+import { ShieldCheck, XCircle } from 'lucide-react';
+import Button from './ui/Button';
+
+const ReportModal = ({ report, config, onClose }) => (
+  <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-[100] flex items-center justify-center p-10 animate-in fade-in duration-500">
+    <div className="bg-white w-full max-w-4xl rounded-[4rem] shadow-2xl overflow-hidden flex flex-col max-h-[95vh] border border-white/20">
+      {/* Header */}
+      <div className="px-14 py-8 bg-slate-50 border-b flex justify-between items-center shrink-0">
+        <div className="flex items-center gap-8">
+          <div className="w-16 h-16 bg-indigo-600 rounded-3xl flex items-center justify-center text-white shadow-xl shadow-indigo-100 ring-[8px] ring-indigo-50">
+            <ShieldCheck size={36} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter leading-none">
+              Diagnostic Record
+            </h2>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mt-3">
+              Final Clinical Summary
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-6 hover:bg-white rounded-[2rem] text-rose-500 hover:shadow-xl transition-all duration-500"
+        >
+          <XCircle size={40} />
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-20 bg-white" id="official-doc">
+        {/* Lab Header */}
+        <div className="flex justify-between border-b-[12px] border-slate-900 pb-16 mb-20">
+          <div className="space-y-6">
+            <div className="w-2 h-16 bg-indigo-600 rounded-full inline-block mr-4 align-middle"></div>
+            <div className="inline-block align-middle">
+              <h1 className="text-5xl font-black text-slate-900 tracking-tighter uppercase leading-none">
+                {config.name}
+              </h1>
+              <p className="text-sm font-black text-slate-500 uppercase tracking-[0.5em] mt-4">
+                Shrii Ganesh Pathology Lab
+              </p>
+            </div>
+          </div>
+          <div className="text-right text-[11px] font-black text-slate-700 space-y-3">
+            <span className="px-8 py-3 bg-slate-900 text-white rounded-full uppercase mb-10 inline-block tracking-[0.4em] shadow-xl">
+              ISO 9001:2015 CERTIFIED
+            </span>
+            <p className="font-black text-indigo-600 uppercase text-3xl tracking-tighter mb-4">
+              {report.patientName}
+            </p>
+            <div className="bg-slate-50 p-6 rounded-[2rem] space-y-1 text-slate-400 uppercase tracking-widest border border-slate-100 shadow-inner">
+              <p>File ID: <span className="text-slate-950 font-black">{report.id}</span></p>
+              <p>Issued: <span className="text-slate-950 font-black">{report.date}</span></p>
+            </div>
+          </div>
+        </div>
+
+        {/* Test Results */}
+        <div className="space-y-24">
+          {report.items.map(test => (
+            <div key={test.id} className="animate-in slide-in-from-left duration-1000">
+              <div className="flex items-center gap-10 mb-12">
+                <h3 className="text-2xl font-black bg-indigo-600 text-white px-12 py-5 rounded-[2.5rem] shadow-[0_30px_60px_-15px_rgba(79,70,229,0.5)] uppercase tracking-widest">
+                  {test.name}
+                </h3>
+                <div className="h-[4px] flex-1 bg-slate-50 rounded-full"></div>
+              </div>
+              <table className="w-full text-xl">
+                <thead className="text-[14px] text-slate-300 border-b-8 border-slate-50 uppercase tracking-[0.5em]">
+                  <tr>
+                    <th className="text-left py-10 px-6">Investigation Parameter</th>
+                    <th className="text-left py-10 px-6">Result</th>
+                    <th className="text-left py-10 px-6">Reference</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y-8 divide-transparent">
+                  {Object.entries(test.values).map(([p, v]) => (
+                    <tr key={p} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-12 px-6 font-black text-slate-700 text-3xl uppercase tracking-tighter">
+                        {p}
+                      </td>
+                      <td className="py-12 px-6 font-black text-indigo-600 text-5xl tracking-tighter">
+                        {v}
+                      </td>
+                      <td className="py-12 px-6 text-slate-400 font-black italic text-2xl tracking-widest">
+                        {test.ranges ? (test.ranges[p] || 'N/A') : (test.referenceRange ? `${test.referenceRange.min} - ${test.referenceRange.max}` : 'N/A')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="mt-[30rem] flex justify-between items-end pt-20 border-t-[16px] border-slate-50 text-center">
+          <div className="text-[14px] text-slate-300 italic max-w-2xl text-left space-y-6">
+            <p className="font-black text-slate-400 uppercase tracking-[0.8em] leading-none mb-4">
+              Verification Certificate
+            </p>
+            <p className="leading-relaxed font-bold tracking-tight">
+              This clinical record is an encrypted electronic health record. Final clinical intervention must be authorized by a licensed medical practitioner.
+            </p>
+          </div>
+          <div className="text-center space-y-10">
+            <div className="w-[28rem] border-t-[12px] border-slate-950 pt-10 text-[24px] font-black text-slate-900 uppercase tracking-[0.5em] leading-none">
+              {report.doctor?.name || report.doctorName || ''}
+            </div>
+            <p className="text-[14px] font-black text-slate-400 tracking-[0.5em] uppercase opacity-60">
+              Chief Medical Pathologist (MD)
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="p-16 bg-slate-50 border-t flex gap-10 justify-end shrink-0">
+        <Button
+          variant="secondary"
+          className="px-16 h-24 text-2xl rounded-[3rem]"
+          onClick={onClose}
+        >
+          Close
+        </Button>
+        <Button
+          className="px-32 h-32 text-4xl tracking-tighter shadow-indigo-200 rounded-[3.5rem]"
+          onClick={() => window.print()}
+        >
+          Print Record
+        </Button>
+      </div>
+    </div>
+  </div>
+);
+
+export default ReportModal;
