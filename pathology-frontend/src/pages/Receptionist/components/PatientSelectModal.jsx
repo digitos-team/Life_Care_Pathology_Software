@@ -25,7 +25,9 @@ const PatientSelectModal = ({ isOpen, onClose, onSelect }) => {
             const params = {
                 page: pagination.page,
                 limit: pagination.limit,
-                search: searchTerm
+                search: searchTerm,
+                sortBy: 'lastTestResultAt', // Sort by most recent test result submission
+                sortOrder: 'desc'
             };
             const response = await getPatients(params);
             setPatients(response.data || []);

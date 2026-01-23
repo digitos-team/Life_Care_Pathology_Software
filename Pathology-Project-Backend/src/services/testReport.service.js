@@ -255,6 +255,12 @@ export const submitTestResults = async (
       : "PENDING";
 
   await order.save();
+
+  // Update patient's lastTestResultAt for sorting in Report Section
+  await Patient.findByIdAndUpdate(order.patientId, {
+    lastTestResultAt: new Date()
+  });
+
   return order;
 };
 
@@ -363,6 +369,11 @@ export const submitBulkResultsByBill = async (
     const anyCompleted = order.tests.some((t) => t.status === "COMPLETED");
     order.overallStatus = allCompleted ? "COMPLETED" : anyCompleted ? "PARTIAL" : "PENDING";
     await order.save();
+
+    // Update patient's lastTestResultAt for sorting in Report Section
+    await Patient.findByIdAndUpdate(order.patientId, {
+      lastTestResultAt: new Date()
+    });
   }
 
   return order;

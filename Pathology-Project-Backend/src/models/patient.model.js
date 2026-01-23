@@ -72,6 +72,7 @@ const patientSchema = new mongoose.Schema(
 
     reportPdfPath: { type: String },
     emailSentAt: { type: Date },
+    lastTestResultAt: { type: Date }, // Tracks when last test result was submitted for sorting
   },
   {
     timestamps: true,
@@ -100,6 +101,9 @@ patientSchema.index({ labId: 1, phone: 1 });
 
 // For gender-based filtering
 patientSchema.index({ labId: 1, gender: 1, createdAt: -1 });
+
+// For sorting by last test result submission (Report Section)
+patientSchema.index({ labId: 1, isActive: 1, lastTestResultAt: -1 });
 
 // Text index for full-text search (name and phone)
 patientSchema.index({ fullName: "text", phone: "text" });

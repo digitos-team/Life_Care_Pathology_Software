@@ -193,16 +193,6 @@ const ReportPreview = ({ reportData, error, labConfig }) => {
                                 for proper medical interpretation and advice.
                             </p>
                         </div>
-                        <div className="text-center">
-                            <div className="border-t-2 border-slate-800 pt-4 mb-2">
-                                <p className="text-sm font-black text-slate-800 uppercase tracking-tight">
-                                    Dr. Nilesh Jadhav
-                                </p>
-                            </div>
-                            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
-                                Chief Medical Pathologist (MD)
-                            </p>
-                        </div>
                     </div>
                 </div>
             </div>

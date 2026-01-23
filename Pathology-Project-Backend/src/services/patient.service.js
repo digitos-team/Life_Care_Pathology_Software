@@ -133,7 +133,7 @@ export const getPatientsByLab = async (labId, options = {}) => {
   // Execute queries in parallel for better performance
   const [patients, totalCount] = await Promise.all([
     Patient.find(filter)
-      .select("patientId fullName phone age gender address reportStatus createdAt updatedAt")
+      .select("patientId fullName phone age gender address reportStatus createdAt updatedAt lastTestResultAt")
       .populate("createdBy", "name email") // If you want to populate createdBy
       .sort(sort)
       .skip(skip)

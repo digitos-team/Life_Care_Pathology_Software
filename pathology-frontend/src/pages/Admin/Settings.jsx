@@ -255,7 +255,7 @@ const Settings = () => {
                                                 className={inputClasses}
                                                 value={labFormData.labName}
                                                 placeholder="Enter lab name"
-                                                onChange={e => setLabFormData({ ...labFormData, labName: e.target.value.toUpperCase() })}
+                                                onChange={e => setLabFormData({ ...labFormData, labName: e.target.value })}
                                                 required
                                             />
                                         </div>
