@@ -5,12 +5,12 @@ import { ApiError } from "../utils/ApiError.js";
 import mongoose from "mongoose";
 
 // Calculate commission and create expense entry
-export const calculateAndRecordCommission = async ({ doctorId, doctorCommissionPercent, totalAmount, billId, labId }) => {
+export const calculateAndRecordCommission = async ({ doctorId, doctorCommissionPercent, totalAmount, billId, labId }, session = null) => {
     // Calculate commission amount
     const commissionAmount = (totalAmount * doctorCommissionPercent) / 100;
 
     // Create expense entry for commission
-    const expense = await Expense.create({
+    const createOptions = {
         title: `Doctor Commission - Bill`,
         amount: commissionAmount,
         category: "COMMISSION",
@@ -18,8 +18,13 @@ export const calculateAndRecordCommission = async ({ doctorId, doctorCommissionP
         date: new Date(),
         description: `Commission for Bill ${billId}`,
         lab: labId,
-        bill: billId, // Added this field
-    });
+        bill: billId,
+    };
+
+    // Support both transactional and non-transactional calls
+    const [expense] = session
+        ? await Expense.create([createOptions], { session })
+        : [await Expense.create(createOptions)];
 
     return {
         amount: commissionAmount,

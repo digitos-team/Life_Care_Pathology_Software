@@ -30,6 +30,15 @@ const paymentSchema = new mongoose.Schema(
     }
 );
 
-paymentSchema.index({ labId: 1, createdAt: -1 });
+// Indexes for performance and data integrity
+paymentSchema.index({ labId: 1, createdAt: -1 }); // Lab payments sorted by date
+paymentSchema.index({ billId: 1 }); // Quick bill payment lookup
+
+// Prevent duplicate transactionId per bill (sparse allows null values)
+paymentSchema.index(
+    { billId: 1, transactionId: 1 },
+    { unique: true, sparse: true, partialFilterExpression: { transactionId: { $exists: true } } }
+);
+
 const Payment = mongoose.model("Payment", paymentSchema);
 export default Payment;

@@ -3,16 +3,21 @@ import { ApiError } from "../utils/ApiError.js";
 import mongoose from "mongoose";
 
 // Record revenue after payment
-export const recordRevenue = async ({ billId, totalAmount, commissionAmount, labId }) => {
+export const recordRevenue = async ({ billId, totalAmount, commissionAmount, labId }, session = null) => {
     const netRevenue = totalAmount - commissionAmount;
 
-    const revenue = await Revenue.create({
+    const revenueData = {
         billId,
         totalAmount,
         commissionAmount,
         netRevenue,
         labId: new mongoose.Types.ObjectId(labId),
-    });
+    };
+
+    // Support both transactional and non-transactional calls
+    const [revenue] = session
+        ? await Revenue.create([revenueData], { session })
+        : [await Revenue.create(revenueData)];
 
     return revenue;
 };

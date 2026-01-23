@@ -3,10 +3,22 @@ import Bill from "../models/bill.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import * as commissionService from "./commission.service.js";
 import * as revenueService from "./revenue.service.js";
+import mongoose from "mongoose";
 
-// Record payment and trigger downstream processes
+// Record payment with MongoDB transaction for data integrity
 export const recordPayment = async ({ billId, amount, paymentMethod, transactionId, labId, discountId }) => {
-    // Validate bill
+    // 🔍 STEP 1: Duplicate Payment Prevention
+    if (transactionId) {
+        const existingPayment = await Payment.findOne({
+            billId,
+            transactionId
+        });
+        if (existingPayment) {
+            throw new ApiError(409, "Payment with this transaction ID already exists for this bill");
+        }
+    }
+
+    // 🔍 STEP 2: Validate bill before starting transaction
     const bill = await Bill.findById(billId)
         .populate("patientId")
         .populate({
@@ -26,7 +38,7 @@ export const recordPayment = async ({ billId, amount, paymentMethod, transaction
         throw new ApiError(400, "Cannot pay cancelled bill");
     }
 
-    // Handle Discount
+    // 🔍 STEP 3: Calculate discount outside transaction
     let discountAmount = 0;
     if (discountId) {
         const Discount = (await import("../models/discount.model.js")).default;
@@ -46,46 +58,70 @@ export const recordPayment = async ({ billId, amount, paymentMethod, transaction
 
     const finalAmount = bill.totalAmount - discountAmount;
 
-    // Create payment record
-    const payment = await Payment.create({
-        billId,
-        amount: finalAmount, // Store the actual amount paid
-        paymentMethod,
-        transactionId,
-        labId,
-    });
+    // 🔒 STEP 4: Start MongoDB Transaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    // Update bill status
-    bill.status = "PAID";
-    bill.paymentId = payment._id;
-    await bill.save();
-
-    // Calculate and record commission (if doctor exists)
-    let commission = null;
-    if (bill.testOrderId?.doctor) {
-        commission = await commissionService.calculateAndRecordCommission({
-            doctorId: bill.testOrderId.doctor._id,
-            doctorCommissionPercent: bill.testOrderId.doctor.commissionPercentage || 0,
-            totalAmount: finalAmount, // Commission on discounted amount
-            billId: bill._id,
+    try {
+        // ✅ Create payment record
+        const [payment] = await Payment.create([{
+            billId,
+            amount: finalAmount,
+            paymentMethod,
+            transactionId,
             labId,
-        });
+        }], { session });
+
+        // ✅ Update bill status
+        bill.status = "PAID";
+        bill.paymentId = payment._id;
+        await bill.save({ session });
+
+        // ✅ Calculate and record commission (if doctor exists)
+        let commission = null;
+        if (bill.testOrderId?.doctor) {
+            commission = await commissionService.calculateAndRecordCommission({
+                doctorId: bill.testOrderId.doctor._id,
+                doctorCommissionPercent: bill.testOrderId.doctor.commissionPercentage || 0,
+                totalAmount: finalAmount,
+                billId: bill._id,
+                labId,
+            }, session); // Pass session to commission service
+        }
+
+        // ✅ Record revenue
+        const revenue = await revenueService.recordRevenue({
+            billId: bill._id,
+            totalAmount: finalAmount,
+            commissionAmount: commission?.amount || 0,
+            labId,
+        }, session); // Pass session to revenue service
+
+        // 🎉 Commit transaction - All or nothing!
+        await session.commitTransaction();
+
+        return {
+            payment,
+            bill,
+            commission,
+            revenue,
+        };
+
+    } catch (error) {
+        // 🔄 Rollback transaction on any error
+        await session.abortTransaction();
+
+        // Log the error for debugging
+        console.error("Payment transaction failed:", error);
+
+        throw new ApiError(
+            500,
+            `Payment processing failed: ${error.message}. No changes were made.`
+        );
+    } finally {
+        // 🔓 Always end session
+        session.endSession();
     }
-
-    // Record revenue
-    const revenue = await revenueService.recordRevenue({
-        billId: bill._id,
-        totalAmount: finalAmount, // Revenue is discounted amount
-        commissionAmount: commission?.amount || 0,
-        labId,
-    });
-
-    return {
-        payment,
-        bill,
-        commission,
-        revenue,
-    };
 };
 
 // Get payments for a bill
