@@ -9,7 +9,7 @@ const MobileHeader = ({ onMenuClick }) => {
                     <Activity size={20} className="text-white" />
                 </div>
                 <span className="font-black text-lg tracking-tight text-slate-800 uppercase">
-                    Digitos
+                    Life Care Diagnostic
                 </span>
             </div>
             <button

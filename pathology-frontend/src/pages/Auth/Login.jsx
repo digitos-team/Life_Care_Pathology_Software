@@ -67,7 +67,7 @@ const Login = () => {
             Welcome Back
           </h1>
           <p className="text-base mt-3 font-medium" style={{ color: 'var(--text-secondary)' }}>
-            Sign in to DIGITOS Pathology Lab
+            Sign in to Life Care Diagnostic
           </p>
         </div>
 
