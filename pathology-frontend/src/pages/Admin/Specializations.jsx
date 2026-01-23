@@ -29,12 +29,13 @@ const Specializations = () => {
         try {
             setLoading(true);
             const response = await getAllSpecializations();
-            // Handle nested data structure
-            const data = response.data || response;
+            // Handle nested data structure: response.data.specializations
+            const data = response.data?.specializations || response.specializations || response.data || response;
             setSpecializations(Array.isArray(data) ? data : []);
         } catch (error) {
             showToast('Failed to fetch specializations', 'error');
             console.error('Fetch specializations error:', error);
+            setSpecializations([]);
         } finally {
             setLoading(false);
         }
@@ -191,9 +192,6 @@ const Specializations = () => {
                                         <th className="px-8 py-5 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest">
                                             Description
                                         </th>
-                                        <th className="px-8 py-5 text-center text-[11px] font-black text-slate-400 uppercase tracking-widest">
-                                            Doctor Count
-                                        </th>
                                         <th className="px-8 py-5 text-right text-[11px] font-black text-slate-400 uppercase tracking-widest">
                                             Actions
                                         </th>
@@ -212,11 +210,6 @@ const Specializations = () => {
                                             </td>
                                             <td className="px-8 py-5 text-sm font-medium text-slate-500 max-w-xs truncate">
                                                 {spec.description || 'No description provided'}
-                                            </td>
-                                            <td className="px-8 py-5 whitespace-nowrap text-center">
-                                                <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-black">
-                                                    {spec.doctorCount || 0} Docs
-                                                </span>
                                             </td>
                                             <td className="px-8 py-5 whitespace-nowrap text-right">
                                                 <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">

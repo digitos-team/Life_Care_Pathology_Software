@@ -58,9 +58,12 @@ const LabTestManagement = () => {
     const fetchSpecializations = async () => {
         try {
             const response = await getAllSpecializations();
-            setAvailableSpecializations(response.data || response || []);
+            // Handle nested data structures correctly
+            const data = response.data?.specializations || response.specializations || response.data || response;
+            setAvailableSpecializations(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Failed to fetch specializations:', error);
+            setAvailableSpecializations([]);
         }
     };
 
@@ -100,7 +103,7 @@ const LabTestManagement = () => {
                 if (!param.unit.trim()) paramError.unit = 'Unit is required';
 
                 // Reference ranges validation
-                if (!param.referenceRanges || param.referenceRanges.length === 0) {
+                if (!Array.isArray(param.referenceRanges) || param.referenceRanges.length === 0) {
                     paramError.referenceRanges = 'At least one reference range is required';
                 } else {
                     param.referenceRanges.forEach((range, rangeIndex) => {
@@ -183,7 +186,81 @@ const LabTestManagement = () => {
         setShowForm(false);
     };
 
-    // ... parameter management functions ...
+    // Parameter management functions
+    const addParameter = () => {
+        setFormData(prev => ({
+            ...prev,
+            parameters: [
+                ...prev.parameters,
+                {
+                    name: '',
+                    unit: '',
+                    referenceRanges: [{ gender: 'Male', min: '', max: '' }]
+                }
+            ]
+        }));
+    };
+
+    const removeParameter = (index) => {
+        setFormData(prev => ({
+            ...prev,
+            parameters: prev.parameters.filter((_, i) => i !== index)
+        }));
+    };
+
+    const updateParameter = (index, path, value) => {
+        setFormData(prev => {
+            const newParameters = [...(prev.parameters || [])];
+            const parts = path.split('.');
+
+            if (parts.length === 1) {
+                newParameters[index] = { ...newParameters[index], [path]: value };
+            } else if (parts.length === 3 && parts[0] === 'referenceRanges') {
+                const rangeIndex = parseInt(parts[1]);
+                const rangeField = parts[2];
+                const currentRanges = Array.isArray(newParameters[index]?.referenceRanges)
+                    ? newParameters[index].referenceRanges
+                    : [];
+                const newRanges = [...currentRanges];
+                if (newRanges[rangeIndex]) {
+                    newRanges[rangeIndex] = { ...newRanges[rangeIndex], [rangeField]: value };
+                }
+                newParameters[index] = { ...newParameters[index], referenceRanges: newRanges };
+            }
+
+            return { ...prev, parameters: newParameters };
+        });
+    };
+
+    const addReferenceRange = (paramIndex) => {
+        setFormData(prev => {
+            const newParameters = [...(prev.parameters || [])];
+            if (!newParameters[paramIndex]) return prev;
+
+            const currentRanges = Array.isArray(newParameters[paramIndex].referenceRanges)
+                ? newParameters[paramIndex].referenceRanges
+                : [];
+
+            const newRanges = [...currentRanges, { gender: 'Male', min: '', max: '' }];
+            newParameters[paramIndex] = { ...newParameters[paramIndex], referenceRanges: newRanges };
+            return { ...prev, parameters: newParameters };
+        });
+    };
+
+    const removeReferenceRange = (paramIndex, rangeIndex) => {
+        setFormData(prev => {
+            const newParameters = [...(prev.parameters || [])];
+            if (!newParameters[paramIndex]) return prev;
+
+            const currentRanges = Array.isArray(newParameters[paramIndex].referenceRanges)
+                ? newParameters[paramIndex].referenceRanges
+                : [];
+
+            const newRanges = currentRanges.filter((_, i) => i !== rangeIndex);
+            newParameters[paramIndex] = { ...newParameters[paramIndex], referenceRanges: newRanges };
+            return { ...prev, parameters: newParameters };
+        });
+    };
 
     // Handle edit
     const handleEdit = (test) => {
@@ -194,8 +271,13 @@ const LabTestManagement = () => {
             price: test.price?.toString() || '',
             status: test.status || 'Active',
             labId: test.labId || user?.labId,
-            parameters: test.parameters || [],
-            specializationIds: test.specializations?.map(s => s._id || s.id) || []
+            parameters: Array.isArray(test.parameters)
+                ? test.parameters.map(p => ({
+                    ...p,
+                    referenceRanges: Array.isArray(p.referenceRanges) ? p.referenceRanges : []
+                }))
+                : [],
+            specializationIds: Array.isArray(test.specializations) ? test.specializations.map(s => s._id || s.id) : []
         });
         setShowForm(true);
     };
@@ -328,7 +410,7 @@ const LabTestManagement = () => {
                                     <Layers size={16} /> Assign Specialization (For Doctor Commission)
                                 </label>
                                 <div className="flex flex-wrap gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl min-h-[60px]">
-                                    {availableSpecializations.map(spec => {
+                                    {Array.isArray(availableSpecializations) && availableSpecializations.map(spec => {
                                         const isSelected = formData.specializationIds.includes(spec._id);
                                         return (
                                             <button
@@ -343,8 +425,8 @@ const LabTestManagement = () => {
                                                     }));
                                                 }}
                                                 className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${isSelected
-                                                        ? 'bg-indigo-600 text-white shadow-md'
-                                                        : 'bg-white text-slate-500 border border-slate-300 hover:border-indigo-400'
+                                                    ? 'bg-indigo-600 text-white shadow-md'
+                                                    : 'bg-white text-slate-500 border border-slate-300 hover:border-indigo-400'
                                                     }`}
                                             >
                                                 {spec.name}
@@ -619,12 +701,12 @@ const LabTestManagement = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-wrap gap-1">
-                                                    {test.specializations?.map(s => (
+                                                    {Array.isArray(test.specializations) && test.specializations.map(s => (
                                                         <span key={s._id} className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-bold">
                                                             {s.name}
                                                         </span>
                                                     ))}
-                                                    {(!test.specializations || test.specializations.length === 0) && (
+                                                    {(!test.specializations || !Array.isArray(test.specializations) || test.specializations.length === 0) && (
                                                         <span className="text-slate-300 text-xs italic">N/A</span>
                                                     )}
                                                 </div>

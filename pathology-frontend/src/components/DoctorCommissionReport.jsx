@@ -168,7 +168,7 @@ const DoctorCommissionReport = ({ doctor, onBack }) => {
                                                                     {comm.patientName || 'Unknown Patient'}
                                                                 </p>
                                                                 <p className="text-xs text-gray-400 font-mono">
-                                                                    {comm.billNumber || 'N/A'}
+                                                                    {comm.billNumber || 'N/A'} {comm.testNames && `• ${Array.isArray(comm.testNames) ? comm.testNames.join(', ') : comm.testNames}`}
                                                                 </p>
                                                             </div>
                                                         </div>

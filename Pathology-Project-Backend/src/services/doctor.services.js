@@ -189,6 +189,13 @@ export const getDoctorCommissionReportService = async (doctorId, type) => {
           date: "$date",
           patientName: "$patientDetails.fullName",
           billNumber: "$billDetails.billNumber",
+          testNames: {
+            $map: {
+              input: "$billDetails.items",
+              as: "item",
+              in: "$$item.name",
+            },
+          },
         },
       },
     },

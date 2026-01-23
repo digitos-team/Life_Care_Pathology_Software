@@ -56,9 +56,12 @@ const DoctorsSection = () => {
     const fetchSpecializations = async () => {
         try {
             const response = await getAllSpecializations();
-            setAvailableSpecializations(response.data || response || []);
+            // Handle nested data structures correctly
+            const data = response.data?.specializations || response.specializations || response.data || response;
+            setAvailableSpecializations(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Failed to fetch specializations:', error);
+            setAvailableSpecializations([]);
         }
     };
 
@@ -407,8 +410,8 @@ const DoctorsSection = () => {
                                                             }));
                                                         }}
                                                         className={`px-3 py-1.5 rounded-full text-xs font-black transition-all ${isSelected
-                                                                ? 'bg-indigo-600 text-white'
-                                                                : 'bg-white text-slate-500 border border-slate-300 hover:border-indigo-400'
+                                                            ? 'bg-indigo-600 text-white'
+                                                            : 'bg-white text-slate-500 border border-slate-300 hover:border-indigo-400'
                                                             }`}
                                                     >
                                                         {spec.name}

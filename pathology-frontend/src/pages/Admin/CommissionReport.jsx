@@ -294,6 +294,7 @@ const CommissionReport = () => {
                                                 <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase">Bill Date</th>
                                                 <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Bill #</th>
                                                 <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient</th>
+                                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Tests</th>
                                                 <th className="px-6 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</th>
                                                 <th className="px-6 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Commission Type</th>
                                                 <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Commission</th>
@@ -312,13 +313,16 @@ const CommissionReport = () => {
                                                         <td className="px-6 py-4 whitespace-nowrap font-black text-slate-700 uppercase tracking-tight">
                                                             {bill.patientName}
                                                         </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-slate-500 max-w-[200px] truncate" title={bill.testNames}>
+                                                            {bill.testNames}
+                                                        </td>
                                                         <td className="px-6 py-4 whitespace-nowrap text-center font-black text-slate-500">
                                                             ₹{bill.totalAmount.toLocaleString()}
                                                         </td>
                                                         <td className="px-6 py-4 whitespace-nowrap text-center">
                                                             <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${bill.commissionType === 'specialized'
-                                                                    ? 'bg-emerald-50 text-emerald-600'
-                                                                    : 'bg-amber-50 text-amber-600'
+                                                                ? 'bg-emerald-50 text-emerald-600'
+                                                                : 'bg-amber-50 text-amber-600'
                                                                 }`}>
                                                                 {bill.commissionType}
                                                             </span>
