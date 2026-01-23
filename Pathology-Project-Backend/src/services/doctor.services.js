@@ -1,29 +1,82 @@
 import Doctor from "../models/doctor.model.js";
 import PathologyLab from "../models/pathologyLab.model.js";
 import Expense from "../models/expense.model.js";
+import DoctorSpecialization from "../models/doctorSpecialization.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import mongoose from "mongoose";
 
+// Helper to assign specializations
+const assignSpecializations = async (doctorId, specializationIds) => {
+  if (!specializationIds || !Array.isArray(specializationIds)) return;
+
+  // Clear existing specializations
+  await DoctorSpecialization.deleteMany({ doctorId });
+
+  // Add new specializations
+  if (specializationIds.length > 0) {
+    const specs = specializationIds.map((specId) => ({
+      doctorId,
+      specializationId: specId,
+    }));
+    await DoctorSpecialization.insertMany(specs);
+  }
+};
+
 export const createDoctorService = async (doctorData, labId) => {
-  // We already have labId from the controller
+  const { specializationIds, ...data } = doctorData;
 
   const doctor = await Doctor.create({
-    ...doctorData,
+    ...data,
     lab: labId,
   });
 
-  return doctor;
+  // Assign specializations if provided
+  if (specializationIds && specializationIds.length > 0) {
+    await assignSpecializations(doctor._id, specializationIds);
+  }
+
+  // Return full doctor with specializations
+  return await getDoctorByIdService(doctor._id, labId);
 };
 
 export const updateDoctorService = async (doctorId, updates) => {
-  const doctor = await Doctor.findByIdAndUpdate(doctorId, updates, {
+  const { specializationIds, ...data } = updates;
+  const doctor = await Doctor.findByIdAndUpdate(doctorId, data, {
     new: true,
   });
   if (!doctor) {
     throw new ApiError(404, "Doctor not found");
   }
-  return doctor;
+
+  // Update specializations if provided
+  if (specializationIds) {
+    await assignSpecializations(doctor._id, specializationIds);
+  }
+
+  // Return full doctor with specializations
+  return await getDoctorByIdService(doctor._id, doctor.lab);
 };
+
+export const assignSpecializationsToDoctorService = async (
+  doctorId,
+  specializationIds
+) => {
+  await assignSpecializations(doctorId, specializationIds);
+  return await DoctorSpecialization.find({ doctorId }).populate(
+    "specializationId"
+  );
+};
+
+export const removeSpecializationsFromDoctorService = async (
+  doctorId,
+  specializationIds
+) => {
+  await DoctorSpecialization.deleteMany({
+    doctorId,
+    specializationId: { $in: specializationIds },
+  });
+};
+
 
 export const getAllDoctorsService = async (labId, options = {}) => {
   const page = Math.max(1, parseInt(options.page) || 1);
@@ -31,19 +84,40 @@ export const getAllDoctorsService = async (labId, options = {}) => {
   const skip = (page - 1) * limit;
 
   const [doctors, totalCount] = await Promise.all([
-    Doctor.find({ lab: labId }).skip(skip).limit(limit).lean(),
+    Doctor.find({ lab: labId }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
     Doctor.countDocuments({ lab: labId }),
   ]);
+
+  // Fetch specializations for all doctors in this page
+  const doctorIds = doctors.map(d => d._id);
+  const allSpecs = await DoctorSpecialization.find({ doctorId: { $in: doctorIds } })
+    .populate("specializationId")
+    .lean();
+
+  // Group specs by doctorId
+  const specsByDoctor = allSpecs.reduce((acc, spec) => {
+    const dId = spec.doctorId.toString();
+    if (!acc[dId]) acc[dId] = [];
+    acc[dId].push(spec.specializationId);
+    return acc;
+  }, {});
+
+  // Attach specs to doctors
+  const doctorsWithSpecs = doctors.map(d => ({
+    ...d,
+    specializations: specsByDoctor[d._id.toString()] || []
+  }));
 
   const totalPages = Math.ceil(totalCount / limit);
 
   return {
-    doctors,
+    doctors: doctorsWithSpecs,
     pagination: {
       currentPage: page,
       totalPages,
       totalRecords: totalCount,
       recordsPerPage: limit,
+      total: totalCount // added for frontend compatibility
     },
   };
 };
@@ -146,9 +220,20 @@ export const deleteDoctorService = async (doctorId) => {
   return doctor;
 };
 export const getDoctorByIdService = async (doctorId, labId) => {
-  const doctor = await Doctor.findOne({ _id: doctorId, lab: labId }).lean();
+  const query = { _id: doctorId };
+  if (labId) query.lab = labId;
+
+  const doctor = await Doctor.findOne(query).lean();
   if (!doctor) {
     throw new ApiError(404, "Doctor not found");
   }
-  return doctor;
+
+  const specializations = await DoctorSpecialization.find({ doctorId })
+    .populate("specializationId")
+    .lean();
+
+  return {
+    ...doctor,
+    specializations: specializations.map((s) => s.specializationId),
+  };
 };

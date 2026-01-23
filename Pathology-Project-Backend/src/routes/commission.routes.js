@@ -3,13 +3,17 @@ import {
     getDoctorMonthlyCommissionController,
     getDoctorCommissionReportController,
     downloadDoctorCommissionReportController,
-    getAllCommissionsController
+    getAllCommissionsController,
+    getAllDoctorsCommissionSummary
 } from "../controllers/commission.controller.js";
 import { authMiddleware } from "../middleware/user.middleware.js";
 
 const router = express.Router();
 
 router.use(authMiddleware);
+
+// Get Commission Summary for all doctors
+router.get("/summary", getAllDoctorsCommissionSummary);
 
 // Get ALL commissions (Global report)
 router.get("/all", getAllCommissionsController);

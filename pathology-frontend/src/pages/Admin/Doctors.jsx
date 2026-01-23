@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
-import { Stethoscope, Plus, Edit3, Trash2, X } from 'lucide-react';
+import { Stethoscope, Plus, Edit3, Trash2, X, Layers } from 'lucide-react';
 import { getDoctors, createDoctor, updateDoctor, deleteDoctor } from '../../api/admin/doctors.api';
+import { getAllSpecializations } from '../../api/admin/specialization.api';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { toPascalCase } from '../../utils/formatUtils';
@@ -26,13 +27,15 @@ const DoctorsSection = () => {
         name: '',
         mobile: '',
         email: '',
-        specialization: '',
+        specializationIds: [],
         degree: '',
         address: '',
-        commissionPercentage: ''
+        specializedCommissionPercentage: '',
+        generalizedCommissionPercentage: ''
     });
 
     const [formErrors, setFormErrors] = useState({});
+    const [availableSpecializations, setAvailableSpecializations] = useState([]);
 
     // List state
     const [doctors, setDoctors] = useState([]);
@@ -44,10 +47,20 @@ const DoctorsSection = () => {
         totalPages: 0
     });
 
-    // Fetch doctors on mount
+    // Fetch on mount
     useEffect(() => {
         fetchDoctors();
+        fetchSpecializations();
     }, [pagination.page]);
+
+    const fetchSpecializations = async () => {
+        try {
+            const response = await getAllSpecializations();
+            setAvailableSpecializations(response.data || response || []);
+        } catch (error) {
+            console.error('Failed to fetch specializations:', error);
+        }
+    };
 
     const fetchDoctors = async () => {
         try {
@@ -58,7 +71,6 @@ const DoctorsSection = () => {
             });
 
             if (response.data) {
-                // Backend returns { doctors: [], pagination: {} }
                 const doctorsList = response.data.doctors || [];
                 setDoctors(doctorsList);
                 setPagination(prev => ({
@@ -84,19 +96,17 @@ const DoctorsSection = () => {
 
         if (!formData.name.trim()) errors.name = 'Doctor name is required';
         if (!formData.mobile.trim()) errors.mobile = 'Mobile number is required';
-        if (!formData.specialization.trim()) errors.specialization = 'Specialization is required';
 
-        // Commission validation (0-100)
-        if (formData.commissionPercentage === '' || formData.commissionPercentage === null) {
-            errors.commissionPercentage = 'Commission percentage is required';
-        } else {
-            const commission = Number(formData.commissionPercentage);
-            if (commission < 0 || commission > 100) {
-                errors.commissionPercentage = 'Commission percentage must be between 0 and 100';
-            }
-        }
+        // Commissions validation
+        const specComm = Number(formData.specializedCommissionPercentage);
+        const genComm = Number(formData.generalizedCommissionPercentage);
 
-        // Email validation (lowercase)
+        if (formData.specializedCommissionPercentage === '') errors.specializedCommissionPercentage = 'Required';
+        else if (specComm < 0 || specComm > 100) errors.specializedCommissionPercentage = '0-100 only';
+
+        if (formData.generalizedCommissionPercentage === '') errors.generalizedCommissionPercentage = 'Required';
+        else if (genComm < 0 || genComm > 100) errors.generalizedCommissionPercentage = '0-100 only';
+
         if (formData.email && formData.email.trim()) {
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
                 errors.email = 'Please enter a valid email address';
@@ -122,10 +132,11 @@ const DoctorsSection = () => {
                 name: formData.name.trim(),
                 mobile: formData.mobile.trim(),
                 email: formData.email ? formData.email.toLowerCase().trim() : '',
-                specialization: formData.specialization.trim(),
+                specializationIds: formData.specializationIds,
                 degree: formData.degree ? formData.degree.trim() : '',
                 address: formData.address ? formData.address.trim() : '',
-                commissionPercentage: Number(formData.commissionPercentage),
+                specializedCommissionPercentage: Number(formData.specializedCommissionPercentage),
+                generalizedCommissionPercentage: Number(formData.generalizedCommissionPercentage),
                 labId: user?.labId
             };
 
@@ -153,27 +164,29 @@ const DoctorsSection = () => {
             name: '',
             mobile: '',
             email: '',
-            specialization: '',
+            specializationIds: [],
             degree: '',
             address: '',
-            commissionPercentage: ''
+            specializedCommissionPercentage: '',
+            generalizedCommissionPercentage: ''
         });
         setFormErrors({});
         setEditingDoctor(null);
         setShowForm(false);
     };
 
-    // Handle edit
+    // Handle editing
     const handleEdit = (doctor) => {
         setEditingDoctor(doctor);
         setFormData({
             name: doctor.name || '',
             mobile: doctor.mobile || '',
             email: doctor.email || '',
-            specialization: doctor.specialization || '',
+            specializationIds: doctor.specializations?.map(s => s._id || s.id) || [],
             degree: doctor.degree || '',
             address: doctor.address || '',
-            commissionPercentage: doctor.commissionPercentage?.toString() || doctor.commission?.toString() || ''
+            specializedCommissionPercentage: doctor.specializedCommissionPercentage?.toString() || '',
+            generalizedCommissionPercentage: doctor.generalizedCommissionPercentage?.toString() || ''
         });
         setShowForm(true);
     };
@@ -315,51 +328,6 @@ const DoctorsSection = () => {
                                             {formErrors.email && (
                                                 <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
                                             )}
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                Email will be stored in lowercase and must be unique
-                                            </p>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Commission Percentage *
-                                            </label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                max="100"
-                                                step="0.1"
-                                                value={formData.commissionPercentage}
-                                                onChange={(e) => setFormData(prev => ({ ...prev, commissionPercentage: e.target.value }))}
-                                                className={`w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500 ${formErrors.commissionPercentage ? 'border-red-500' : 'border-gray-300'
-                                                    }`}
-                                                placeholder="0.0"
-                                            />
-                                            {formErrors.commissionPercentage && (
-                                                <p className="text-red-500 text-xs mt-1">{formErrors.commissionPercentage}</p>
-                                            )}
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                Percentage must be between 0 and 100
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Specialization *
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={formData.specialization}
-                                                onChange={(e) => setFormData(prev => ({ ...prev, specialization: e.target.value }))}
-                                                className={`w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500 ${formErrors.specialization ? 'border-red-500' : 'border-gray-300'
-                                                    }`}
-                                                placeholder="e.g., Cardiology, General Medicine"
-                                            />
-                                            {formErrors.specialization && (
-                                                <p className="text-red-500 text-xs mt-1">{formErrors.specialization}</p>
-                                            )}
                                         </div>
 
                                         <div>
@@ -376,6 +344,83 @@ const DoctorsSection = () => {
                                         </div>
                                     </div>
 
+                                    {/* Commissions */}
+                                    <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 flex flex-col md:flex-row gap-4">
+                                        <div className="flex-1">
+                                            <label className="block text-xs font-black text-indigo-400 uppercase tracking-widest mb-2">
+                                                Specialized Commission (%)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                step="0.1"
+                                                value={formData.specializedCommissionPercentage}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, specializedCommissionPercentage: e.target.value }))}
+                                                className={`w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500 ${formErrors.specializedCommissionPercentage ? 'border-red-500' : 'border-gray-300'
+                                                    }`}
+                                                placeholder="e.g., 20"
+                                            />
+                                            {formErrors.specializedCommissionPercentage && (
+                                                <p className="text-red-500 text-xs mt-1">{formErrors.specializedCommissionPercentage}</p>
+                                            )}
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="block text-xs font-black text-indigo-400 uppercase tracking-widest mb-2">
+                                                Generalized Commission (%)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                step="0.1"
+                                                value={formData.generalizedCommissionPercentage}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, generalizedCommissionPercentage: e.target.value }))}
+                                                className={`w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500 ${formErrors.generalizedCommissionPercentage ? 'border-red-500' : 'border-gray-300'
+                                                    }`}
+                                                placeholder="e.g., 10"
+                                            />
+                                            {formErrors.generalizedCommissionPercentage && (
+                                                <p className="text-red-500 text-xs mt-1">{formErrors.generalizedCommissionPercentage}</p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Specializations Multi-Select */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                            <Layers size={16} /> Selected Specializations
+                                        </label>
+                                        <div className="flex flex-wrap gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl min-h-[60px]">
+                                            {availableSpecializations.map(spec => {
+                                                const isSelected = formData.specializationIds.includes(spec._id);
+                                                return (
+                                                    <button
+                                                        key={spec._id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                specializationIds: isSelected
+                                                                    ? prev.specializationIds.filter(id => id !== spec._id)
+                                                                    : [...prev.specializationIds, spec._id]
+                                                            }));
+                                                        }}
+                                                        className={`px-3 py-1.5 rounded-full text-xs font-black transition-all ${isSelected
+                                                                ? 'bg-indigo-600 text-white'
+                                                                : 'bg-white text-slate-500 border border-slate-300 hover:border-indigo-400'
+                                                            }`}
+                                                    >
+                                                        {spec.name}
+                                                    </button>
+                                                );
+                                            })}
+                                            {availableSpecializations.length === 0 && (
+                                                <p className="text-xs text-slate-400 italic">No specializations defined</p>
+                                            )}
+                                        </div>
+                                    </div>
+
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Address
@@ -384,7 +429,7 @@ const DoctorsSection = () => {
                                             value={formData.address}
                                             onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                            rows="3"
+                                            rows="2"
                                             placeholder="Clinic/Hospital address"
                                         />
                                     </div>
@@ -423,9 +468,6 @@ const DoctorsSection = () => {
                             <div className="p-8 text-center text-gray-500">
                                 <Stethoscope size={48} className="mx-auto mb-4 opacity-50" />
                                 <p>No doctors registered</p>
-                                <p className="text-sm text-gray-400 mt-1">
-                                    Add your first doctor to get started
-                                </p>
                             </div>
                         ) : (
                             <>
@@ -434,19 +476,13 @@ const DoctorsSection = () => {
                                         <thead className="bg-gray-50 border-b">
                                             <tr>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    Doctor ID
+                                                    Name & Info
                                                 </th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    Name & Contact
+                                                    Specializations
                                                 </th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    Specialization
-                                                </th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    Degree
-                                                </th>
-                                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    Commission
+                                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider font-bold">
+                                                    Commission (S/G)
                                                 </th>
                                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                     Actions
@@ -456,37 +492,32 @@ const DoctorsSection = () => {
                                         <tbody className="bg-white divide-y divide-gray-200">
                                             {doctors.map((doctor) => (
                                                 <tr key={doctor._id || doctor.id} className="hover:bg-gray-50">
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">
-                                                        {doctor._id ? doctor._id.slice(-8) : (doctor.id || 'N/A')}
-                                                    </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <button
                                                             onClick={() => handleViewCommission(doctor)}
                                                             className="text-left group"
                                                         >
-                                                            <div>
-                                                                <div className="text-sm font-medium text-gray-900 group-hover:text-indigo-600 hover:underline transition-colors">
-                                                                    {doctor.name}
-                                                                </div>
-                                                                <div className="text-sm text-gray-500">
-                                                                    {doctor.mobile}
-                                                                </div>
-                                                                {doctor.email && (
-                                                                    <div className="text-xs text-gray-400">
-                                                                        {doctor.email}
-                                                                    </div>
-                                                                )}
+                                                            <div className="font-bold text-slate-800 group-hover:text-indigo-600">
+                                                                {doctor.name}
                                                             </div>
+                                                            <div className="text-xs text-slate-400">{doctor.mobile}</div>
                                                         </button>
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                        {doctor.specialization}
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {doctor.specializations?.map(s => (
+                                                                <span key={s._id} className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-bold">
+                                                                    {s.name}
+                                                                </span>
+                                                            ))}
+                                                            {(!doctor.specializations || doctor.specializations.length === 0) && (
+                                                                <span className="text-slate-300 text-xs italic">Unassigned</span>
+                                                            )}
+                                                        </div>
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                        {doctor.degree || '-'}
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-green-600">
-                                                        {doctor.commissionPercentage || doctor.commission || 0}%
+                                                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                                                        <div className="text-emerald-600 font-bold">{doctor.specializedCommissionPercentage}%</div>
+                                                        <div className="text-slate-400 text-[10px]">{doctor.generalizedCommissionPercentage}% (Gen)</div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                         <div className="flex justify-end space-x-2">

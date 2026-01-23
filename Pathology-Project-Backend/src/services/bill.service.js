@@ -5,6 +5,8 @@ import TestOrder from "../models/testorder.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import mongoose from "mongoose";
 
+import { calculateCommissionForBill } from "./commission.service.js";
+
 // Helper to generate Bill Number
 const generateBillNumber = async () => {
   // Use aggregation to compute numeric part and get max without scanning all documents into app memory
@@ -46,28 +48,73 @@ export const generateBill = async ({
   patientId,
   testOrderId,
   testReports,
-  items,
+  items, // Expected to have testId now
   totalAmount,
   labId,
   paymentId,
   discountId = null,
-  discountAmount = 0
+  discountAmount = 0,
+  referringDoctorId = null
 }, session = null) => {
   // Auto-generate bill number
   const billNumber = await generateBillNumber();
+
+  // Calculate Commissions per item
+  let billCommissionAmount = 0;
+  let billCommissionType = "none";
+  let processedItems = [];
+
+  if (referringDoctorId && items && items.length > 0) {
+    // Process items sequentially to calculate commission
+    processedItems = await Promise.all(items.map(async (item) => {
+      // Create a shallow copy to avoid mutating original
+      const newItem = { ...item };
+
+      if (newItem.testId) {
+        const commData = await calculateCommissionForBill({
+          testId: newItem.testId,
+          referringDoctorId,
+          totalAmount: newItem.price || 0
+        });
+
+        newItem.commissionAmount = commData.commissionAmount;
+        newItem.commissionPercentage = commData.commissionPercentage;
+        newItem.commissionType = commData.commissionType;
+
+        billCommissionAmount += commData.commissionAmount;
+
+        // Determine bill-level type (simplistic: if any specialized, set specialized?)
+        // Or just leave it as 'mixed' if different?
+        // Let's stick to the dominant type or just last one for now, 
+        // or effectively 'generalized' unless all are specialized?
+        // Actually, let's just use the logic: if we have commission, track total.
+        if (commData.commissionType === 'specialized') {
+          billCommissionType = 'specialized';
+        } else if (commData.commissionType === 'generalized' && billCommissionType !== 'specialized') {
+          billCommissionType = 'generalized';
+        }
+      }
+      return newItem;
+    }));
+  } else {
+    processedItems = items;
+  }
 
   const billData = {
     billNumber,
     patientId,
     testOrderId,
     testReports,
-    items,
+    items: processedItems,
     totalAmount,
     labId,
     paymentId,
     discountId,
     discountAmount,
     status: paymentId ? "PAID" : "PENDING",
+    referringDoctorId,
+    commissionAmount: billCommissionAmount,
+    commissionType: billCommissionType
   };
 
   const [bill] = await Bill.create([billData], { session });
@@ -98,6 +145,16 @@ export const getBillById = async (billId) => {
 
     const billObj = bill.toObject();
     billObj.commissionAmount = commissionExpense ? commissionExpense.amount : 0;
+
+    // Create a breakdown for the UI
+    billObj.commissionDetails = (billObj.items || [])
+      .filter(item => item.commissionAmount > 0)
+      .map(item => ({
+        testName: item.name,
+        amount: item.commissionAmount,
+        percentage: item.commissionPercentage,
+        specialized: item.commissionType === 'specialized'
+      }));
 
     return billObj;
   } catch (error) {

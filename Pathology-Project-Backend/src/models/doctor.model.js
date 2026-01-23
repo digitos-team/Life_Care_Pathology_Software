@@ -31,8 +31,15 @@ const doctorSchema = new mongoose.Schema(
       trim: true,
     },
 
-    // Commission Configuration
-    commissionPercentage: {
+    // Two-Tier Commission Configuration
+    specializedCommissionPercentage: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    generalizedCommissionPercentage: {
       type: Number,
       required: true,
       default: 0,

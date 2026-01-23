@@ -20,6 +20,23 @@ const billSchema = new mongoose.Schema({
         {
             name: String,
             price: Number,
+            testId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "LabTest",
+            },
+            commissionAmount: {
+                type: Number,
+                default: 0,
+            },
+            commissionPercentage: {
+                type: Number,
+                default: 0,
+            },
+            commissionType: {
+                type: String,
+                enum: ["specialized", "generalized", "none"],
+                default: "none",
+            },
         },
     ],
     status: {
@@ -48,6 +65,28 @@ const billSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "PathologyLab",
         required: true,
+    },
+    // Commission Tracking
+    referringDoctorId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Doctor",
+        default: null,
+    },
+    commissionType: {
+        type: String,
+        enum: ["specialized", "generalized", "none"],
+        default: "none",
+    },
+    commissionPercentage: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100,
+    },
+    commissionAmount: {
+        type: Number,
+        default: 0,
+        min: 0,
     },
 },
     {

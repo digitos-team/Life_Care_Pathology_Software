@@ -18,6 +18,8 @@ import RevenueList from '../pages/Admin/RevenueList';
 import Discounts from '../pages/Admin/Discounts';
 import AdminPatientRegistry from '../pages/Admin/PatientRegistry';
 import AdminBilling from '../pages/Admin/Billing';
+import Specializations from '../pages/Admin/Specializations';
+import CommissionReport from '../pages/Admin/CommissionReport';
 
 // Receptionist Pages
 import PatientRegistry from '../pages/Receptionist/PatientRegistry';
@@ -133,6 +135,16 @@ const AppRoutes = () => {
             <Route path="/settings" element={
                 <ProtectedRoute allowedRoles={['Admin']}>
                     <PageWithLayout component={Settings} />
+                </ProtectedRoute>
+            } />
+            <Route path="/specializations" element={
+                <ProtectedRoute allowedRoles={['Admin']}>
+                    <PageWithLayout component={Specializations} />
+                </ProtectedRoute>
+            } />
+            <Route path="/commission" element={
+                <ProtectedRoute allowedRoles={['Admin']}>
+                    <PageWithLayout component={CommissionReport} />
                 </ProtectedRoute>
             } />
 

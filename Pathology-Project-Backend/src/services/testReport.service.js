@@ -9,6 +9,7 @@ const getDoctorModel = async () =>
 import { ApiError } from "../utils/ApiError.js";
 import TestOrder from "../models/testorder.model.js";
 import mongoose from "mongoose";
+import { calculateCommissionForBill } from "./commission.service.js";
 
 // Helper function to select appropriate reference range based on patient gender
 const selectReferenceRange = (referenceRanges, patientGender) => {
@@ -128,11 +129,16 @@ export const createTestOrder = async ({
       {
         patientId,
         testOrderId: testOrder._id,
-        items: tests.map((t) => ({ name: t.testName, price: t.price })),
-        totalAmount: finalBillAmount, // Bill stores the POST-DISCOUNT amount
+        items: tests.map((t) => ({
+          name: t.testName,
+          price: t.price,
+          testId: t.testId
+        })),
+        totalAmount: finalBillAmount,
         discountId: discountId || null,
         discountAmount,
         labId,
+        referringDoctorId: doctorId
       }
     );
 
@@ -145,6 +151,111 @@ export const createTestOrder = async ({
       throw new ApiError(400, `Validation Error: ${error.message}`);
     }
     throw error;
+  }
+};
+
+// 8. Update Test Order (Add/Remove Tests)
+export const updateTestOrder = async (orderId, { addTestIds = [], removeTestItemIds = [] }) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const order = await TestOrder.findById(orderId).session(session);
+    if (!order) throw new ApiError(404, "Test Order not found");
+
+    const bill = await Bill.findById(order.billId).session(session);
+    if (!bill) throw new ApiError(404, "Associated Bill not found");
+
+    // 1. Remove Tests
+    if (removeTestItemIds.length > 0) {
+      order.tests = order.tests.filter(t => !removeTestItemIds.includes(t._id.toString()));
+    }
+
+    // 2. Add Tests
+    if (addTestIds.length > 0) {
+      const labTests = await LabTest.find({ _id: { $in: addTestIds } }).session(session);
+
+      const patient = await Patient.findById(order.patientId).session(session);
+
+      for (const labTest of labTests) {
+        if (order.tests.some(t => t.testId.toString() === labTest._id.toString())) continue;
+
+        const initialResults = labTest.parameters.map(p => ({
+          parameterName: p.name,
+          value: "",
+          unit: p.unit,
+          referenceRange: selectReferenceRange(p.referenceRanges, patient?.gender)
+        }));
+
+        order.tests.push({
+          testId: labTest._id,
+          testName: labTest.testName,
+          price: labTest.price,
+          status: "PENDING",
+          results: initialResults
+        });
+      }
+    }
+
+    // 3. Recalculate Totals
+    const grossTotal = order.tests.reduce((sum, t) => sum + (t.price || 0), 0);
+    const netTotal = Math.max(0, grossTotal - (order.discountAmount || 0));
+
+    order.totalAmount = Math.round(netTotal);
+
+    // 4. Update Bill & Recalculate Commissions
+    const billItems = [];
+    let billCommissionAmount = 0;
+    let billCommissionType = "none";
+
+    for (const t of order.tests) {
+      const item = {
+        name: t.testName,
+        price: t.price,
+        testId: t.testId
+      };
+
+      if (order.doctor) {
+        const commData = await calculateCommissionForBill({
+          testId: t.testId,
+          referringDoctorId: order.doctor,
+          totalAmount: t.price || 0
+        });
+
+        item.commissionAmount = commData.commissionAmount;
+        item.commissionPercentage = commData.commissionPercentage;
+        item.commissionType = commData.commissionType;
+        billCommissionAmount += commData.commissionAmount;
+
+        if (commData.commissionType === 'specialized') {
+          billCommissionType = 'specialized';
+        } else if (commData.commissionType === 'generalized' && billCommissionType !== 'specialized') {
+          billCommissionType = 'generalized';
+        }
+      }
+      billItems.push(item);
+    }
+
+    bill.items = billItems;
+    bill.totalAmount = Math.round(netTotal);
+    bill.commissionAmount = billCommissionAmount;
+    bill.commissionType = billCommissionType;
+
+    // Status update logic maintained
+    const allComp = order.tests.every(t => t.status === "COMPLETED");
+    const anyComp = order.tests.some(t => t.status === "COMPLETED");
+    order.overallStatus = allComp ? "COMPLETED" : anyComp ? "PARTIAL" : "PENDING";
+
+    await order.save({ session });
+    await bill.save({ session });
+
+    await session.commitTransaction();
+    return { order, bill };
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
   }
 };
 
@@ -394,80 +505,7 @@ export const reopenTestResult = async (orderId, testItemId) => {
   return order;
 };
 
-// 8. Update Test Order (Add/Remove Tests)
-export const updateTestOrder = async (orderId, { addTestIds = [], removeTestItemIds = [] }) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
 
-  try {
-    const order = await TestOrder.findById(orderId).session(session);
-    if (!order) throw new ApiError(404, "Test Order not found");
-
-    const bill = await Bill.findById(order.billId).session(session);
-    if (!bill) throw new ApiError(404, "Associated Bill not found");
-
-    // 1. Remove Tests
-    if (removeTestItemIds.length > 0) {
-      order.tests = order.tests.filter(t => !removeTestItemIds.includes(t._id.toString()));
-    }
-
-    // 2. Add Tests
-    if (addTestIds.length > 0) {
-      const labTests = await LabTest.find({ _id: { $in: addTestIds } }).session(session);
-
-      // Fetch patient to get gender for reference range selection
-      const patient = await Patient.findById(order.patientId).session(session);
-
-      for (const labTest of labTests) {
-        // Prevent adding duplicate of the EXACT same test inside the same order
-        if (order.tests.some(t => t.testId.toString() === labTest._id.toString())) continue;
-
-        const initialResults = labTest.parameters.map(p => ({
-          parameterName: p.name,
-          value: "",
-          unit: p.unit,
-          referenceRange: selectReferenceRange(p.referenceRanges, patient?.gender)
-        }));
-
-        order.tests.push({
-          testId: labTest._id,
-          testName: labTest.testName,
-          price: labTest.price,
-          status: "PENDING",
-          results: initialResults
-        });
-      }
-    }
-
-    // 3. Recalculate Totals
-    const grossTotal = order.tests.reduce((sum, t) => sum + (t.price || 0), 0);
-    // Maintain existing discount (flat amount) logic for now
-    // Ideally we should recalculate percentage discounts, but for now we trust the stored amount
-    const netTotal = Math.max(0, grossTotal - (order.discountAmount || 0));
-
-    order.totalAmount = Math.round(netTotal);
-
-    // 4. Update Bill
-    bill.items = order.tests.map(t => ({ name: t.testName, price: t.price }));
-    bill.totalAmount = Math.round(netTotal);
-
-    // 5. Update Status
-    const allComp = order.tests.every(t => t.status === "COMPLETED");
-    const anyComp = order.tests.some(t => t.status === "COMPLETED");
-    order.overallStatus = allComp ? "COMPLETED" : anyComp ? "PARTIAL" : "PENDING";
-
-    await order.save({ session });
-    await bill.save({ session });
-
-    await session.commitTransaction();
-    return { order, bill };
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
-};
 
 // 9. Finalize Test Order
 export const finalizeTestOrder = async (orderId) => {

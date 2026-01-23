@@ -47,21 +47,27 @@ const DoctorCommissionReport = ({ doctor, onBack }) => {
                 </button>
                 <div>
                     <h2 className="text-2xl font-bold text-gray-900">{doctor.name}</h2>
-                    <p className="text-gray-600">{doctor.specialization} • {doctor.degree || 'No Degree'}</p>
+                    <p className="text-gray-600">
+                        {doctor.specializations?.map(s => s.name).join(', ') || 'General Practice'} • {doctor.degree || 'No Degree'}
+                    </p>
                 </div>
             </div>
 
             {/* Doctor Info Card */}
             <Card title="Doctor Information">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Contact</p>
                         <p className="text-sm font-medium text-gray-900">{doctor.mobile}</p>
                         {doctor.email && <p className="text-xs text-gray-500">{doctor.email}</p>}
                     </div>
                     <div>
-                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Commission Rate</p>
-                        <p className="text-2xl font-bold text-green-600">{doctor.commissionPercentage || 0}%</p>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Specialized Rate</p>
+                        <p className="text-2xl font-bold text-indigo-600">{doctor.specializedCommissionPercentage || 0}%</p>
+                    </div>
+                    <div>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Generalized Rate</p>
+                        <p className="text-2xl font-bold text-slate-600">{doctor.generalizedCommissionPercentage || 0}%</p>
                     </div>
                     <div>
                         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Doctor ID</p>

@@ -358,6 +358,23 @@ const BillingPage = () => {
                                                                     <p className="text-xs text-slate-400 font-medium">Recorded Doctor</p>
                                                                 </div>
                                                             </div>
+
+                                                            {billDetails[bill._id].commissionDetails?.length > 0 && (
+                                                                <div className="mt-4 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+                                                                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-2">Commission Breakdown</p>
+                                                                    <div className="space-y-2">
+                                                                        {billDetails[bill._id].commissionDetails.map((comm, idx) => (
+                                                                            <div key={idx} className="flex justify-between items-center text-[11px]">
+                                                                                <span className="text-slate-600 font-medium truncate max-w-[120px]">
+                                                                                    {comm.testName || 'Test Item'}
+                                                                                    {comm.specialized ? <span className="ml-1 text-[8px] bg-indigo-100 text-indigo-600 px-1 rounded">SPEC</span> : <span className="ml-1 text-[8px] bg-slate-100 text-slate-500 px-1 rounded">GEN</span>}
+                                                                                </span>
+                                                                                <span className="font-bold text-emerald-700">₹{comm.amount} ({comm.percentage}%)</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
 
