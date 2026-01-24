@@ -138,7 +138,7 @@ const TestAssignment = () => {
                                     <option value="">Choose Doctor (Optional)...</option>
                                     {doctors.map(d => (
                                         <option key={d._id || d.id} value={d._id || d.id}>
-                                            {d.name} ({d.specialization})
+                                            {d.name} ({d.specializations?.map(s => s.name).join(', ') || 'General'})
                                         </option>
                                     ))}
                                 </select>

@@ -3,9 +3,11 @@ import React, { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import { Microscope, Plus, Edit3, Trash2, X, AlertTriangle } from 'lucide-react';
 import { getLabTests, createLabTest, updateLabTest, deleteLabTest } from '../../api/admin/labTest.api';
+import { getAllSpecializations } from '../../api/admin/specialization.api';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../contexts/AuthContext';
 import DeleteConfirmModal from '../../components/ui/DeleteConfirmModal';
+import { Layers } from 'lucide-react';
 
 const TEST_CATEGORIES = [
     'Blood',
@@ -35,20 +37,35 @@ const LabTestManagement = () => {
         price: '',
         status: 'Active',
         labId: user?.labId,
-        parameters: []
+        parameters: [],
+        specializationIds: []
     });
 
     const [formErrors, setFormErrors] = useState({});
     const [parameterErrors, setParameterErrors] = useState([]);
+    const [availableSpecializations, setAvailableSpecializations] = useState([]);
 
     // List state
     const [tests, setTests] = useState([]);
     const [listLoading, setListLoading] = useState(true);
 
-    // Fetch tests on mount
+    // Fetch on mount
     useEffect(() => {
         fetchTests();
+        fetchSpecializations();
     }, []);
+
+    const fetchSpecializations = async () => {
+        try {
+            const response = await getAllSpecializations();
+            // Handle nested data structures correctly
+            const data = response.data?.specializations || response.specializations || response.data || response;
+            setAvailableSpecializations(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Failed to fetch specializations:', error);
+            setAvailableSpecializations([]);
+        }
+    };
 
     const fetchTests = async () => {
         try {
@@ -86,7 +103,7 @@ const LabTestManagement = () => {
                 if (!param.unit.trim()) paramError.unit = 'Unit is required';
 
                 // Reference ranges validation
-                if (!param.referenceRanges || param.referenceRanges.length === 0) {
+                if (!Array.isArray(param.referenceRanges) || param.referenceRanges.length === 0) {
                     paramError.referenceRanges = 'At least one reference range is required';
                 } else {
                     param.referenceRanges.forEach((range, rangeIndex) => {
@@ -130,7 +147,8 @@ const LabTestManagement = () => {
                 price: Number(formData.price),
                 status: formData.status,
                 labId: formData.labId,
-                parameters: formData.parameters
+                parameters: formData.parameters,
+                specializationIds: formData.specializationIds
             };
 
             if (editingTest) {
@@ -159,7 +177,8 @@ const LabTestManagement = () => {
             price: '',
             status: 'Active',
             labId: user?.labId,
-            parameters: []
+            parameters: [],
+            specializationIds: []
         });
         setFormErrors({});
         setParameterErrors([]);
@@ -167,77 +186,80 @@ const LabTestManagement = () => {
         setShowForm(false);
     };
 
-    // Parameter management
+    // Parameter management functions
     const addParameter = () => {
         setFormData(prev => ({
             ...prev,
-            parameters: [...prev.parameters, {
-                name: '',
-                unit: '',
-                referenceRanges: [{
-                    gender: 'Male',
-                    min: '',
-                    max: ''
-                }]
-            }]
-        }));
-    };
-
-    const updateParameter = (paramIndex, field, value) => {
-        setFormData(prev => ({
-            ...prev,
-            parameters: prev.parameters.map((param, i) => {
-                if (i !== paramIndex) return param;
-
-                if (field.startsWith('referenceRanges.')) {
-                    const [, rangeIndex, rangeField] = field.split('.');
-                    return {
-                        ...param,
-                        referenceRanges: param.referenceRanges.map((range, ri) =>
-                            ri === parseInt(rangeIndex) ? { ...range, [rangeField]: value } : range
-                        )
-                    };
+            parameters: [
+                ...prev.parameters,
+                {
+                    name: '',
+                    unit: '',
+                    referenceRanges: [{ gender: 'Male', min: '', max: '' }]
                 }
-                return { ...param, [field]: value };
-            })
+            ]
         }));
     };
 
-    const removeParameter = (paramIndex) => {
+    const removeParameter = (index) => {
         setFormData(prev => ({
             ...prev,
-            parameters: prev.parameters.filter((_, i) => i !== paramIndex)
+            parameters: prev.parameters.filter((_, i) => i !== index)
         }));
-        // Clear parameter errors
-        setParameterErrors(prev => prev.filter((_, i) => i !== paramIndex));
+    };
+
+    const updateParameter = (index, path, value) => {
+        setFormData(prev => {
+            const newParameters = [...(prev.parameters || [])];
+            const parts = path.split('.');
+
+            if (parts.length === 1) {
+                newParameters[index] = { ...newParameters[index], [path]: value };
+            } else if (parts.length === 3 && parts[0] === 'referenceRanges') {
+                const rangeIndex = parseInt(parts[1]);
+                const rangeField = parts[2];
+                const currentRanges = Array.isArray(newParameters[index]?.referenceRanges)
+                    ? newParameters[index].referenceRanges
+                    : [];
+                const newRanges = [...currentRanges];
+                if (newRanges[rangeIndex]) {
+                    newRanges[rangeIndex] = { ...newRanges[rangeIndex], [rangeField]: value };
+                }
+                newParameters[index] = { ...newParameters[index], referenceRanges: newRanges };
+            }
+
+            return { ...prev, parameters: newParameters };
+        });
     };
 
     const addReferenceRange = (paramIndex) => {
-        setFormData(prev => ({
-            ...prev,
-            parameters: prev.parameters.map((param, i) =>
-                i === paramIndex ? {
-                    ...param,
-                    referenceRanges: [...param.referenceRanges, {
-                        gender: 'Female',
-                        min: '',
-                        max: ''
-                    }]
-                } : param
-            )
-        }));
+        setFormData(prev => {
+            const newParameters = [...(prev.parameters || [])];
+            if (!newParameters[paramIndex]) return prev;
+
+            const currentRanges = Array.isArray(newParameters[paramIndex].referenceRanges)
+                ? newParameters[paramIndex].referenceRanges
+                : [];
+
+            const newRanges = [...currentRanges, { gender: 'Male', min: '', max: '' }];
+            newParameters[paramIndex] = { ...newParameters[paramIndex], referenceRanges: newRanges };
+            return { ...prev, parameters: newParameters };
+        });
     };
 
     const removeReferenceRange = (paramIndex, rangeIndex) => {
-        setFormData(prev => ({
-            ...prev,
-            parameters: prev.parameters.map((param, i) =>
-                i === paramIndex ? {
-                    ...param,
-                    referenceRanges: param.referenceRanges.filter((_, ri) => ri !== rangeIndex)
-                } : param
-            )
-        }));
+        setFormData(prev => {
+            const newParameters = [...(prev.parameters || [])];
+            if (!newParameters[paramIndex]) return prev;
+
+            const currentRanges = Array.isArray(newParameters[paramIndex].referenceRanges)
+                ? newParameters[paramIndex].referenceRanges
+                : [];
+
+            const newRanges = currentRanges.filter((_, i) => i !== rangeIndex);
+            newParameters[paramIndex] = { ...newParameters[paramIndex], referenceRanges: newRanges };
+            return { ...prev, parameters: newParameters };
+        });
     };
 
     // Handle edit
@@ -249,7 +271,13 @@ const LabTestManagement = () => {
             price: test.price?.toString() || '',
             status: test.status || 'Active',
             labId: test.labId || user?.labId,
-            parameters: test.parameters || []
+            parameters: Array.isArray(test.parameters)
+                ? test.parameters.map(p => ({
+                    ...p,
+                    referenceRanges: Array.isArray(p.referenceRanges) ? p.referenceRanges : []
+                }))
+                : [],
+            specializationIds: Array.isArray(test.specializations) ? test.specializations.map(s => s._id || s.id) : []
         });
         setShowForm(true);
     };
@@ -374,6 +402,41 @@ const LabTestManagement = () => {
                                 {formErrors.price && (
                                     <p className="text-red-500 text-xs mt-1">{formErrors.price}</p>
                                 )}
+                            </div>
+
+                            {/* Specialization Selection */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                    <Layers size={16} /> Assign Specialization (For Doctor Commission)
+                                </label>
+                                <div className="flex flex-wrap gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl min-h-[60px]">
+                                    {Array.isArray(availableSpecializations) && availableSpecializations.map(spec => {
+                                        const isSelected = formData.specializationIds.includes(spec._id);
+                                        return (
+                                            <button
+                                                key={spec._id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        specializationIds: isSelected
+                                                            ? prev.specializationIds.filter(id => id !== spec._id)
+                                                            : [...prev.specializationIds, spec._id]
+                                                    }));
+                                                }}
+                                                className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${isSelected
+                                                    ? 'bg-indigo-600 text-white shadow-md'
+                                                    : 'bg-white text-slate-500 border border-slate-300 hover:border-indigo-400'
+                                                    }`}
+                                            >
+                                                {spec.name}
+                                            </button>
+                                        );
+                                    })}
+                                    {availableSpecializations.length === 0 && (
+                                        <p className="text-xs text-slate-400 italic">No specializations defined</p>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Parameters Section */}
@@ -608,6 +671,9 @@ const LabTestManagement = () => {
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Parameters
                                         </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Specializations
+                                        </th>
                                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Price
                                         </th>
@@ -632,6 +698,18 @@ const LabTestManagement = () => {
                                             </td>
                                             <td className="px-6 py-4 text-sm text-gray-500">
                                                 {test.parameters?.length || 0} parameters
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {Array.isArray(test.specializations) && test.specializations.map(s => (
+                                                        <span key={s._id} className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-bold">
+                                                            {s.name}
+                                                        </span>
+                                                    ))}
+                                                    {(!test.specializations || !Array.isArray(test.specializations) || test.specializations.length === 0) && (
+                                                        <span className="text-slate-300 text-xs italic">N/A</span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-green-600">
                                                 {formatCurrency(test.price)}

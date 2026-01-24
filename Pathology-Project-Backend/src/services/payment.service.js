@@ -77,16 +77,15 @@ export const recordPayment = async ({ billId, amount, paymentMethod, transaction
         bill.paymentId = payment._id;
         await bill.save({ session });
 
-        // ✅ Calculate and record commission (if doctor exists)
+        // ✅ Record commission expense (if bill has commission)
         let commission = null;
-        if (bill.testOrderId?.doctor) {
-            commission = await commissionService.calculateAndRecordCommission({
-                doctorId: bill.testOrderId.doctor._id,
-                doctorCommissionPercent: bill.testOrderId.doctor.commissionPercentage || 0,
-                totalAmount: finalAmount,
+        if (bill.commissionAmount > 0 && bill.referringDoctorId) {
+            commission = await commissionService.recordCommissionExpense({
                 billId: bill._id,
-                labId,
-            }, session); // Pass session to commission service
+                doctorId: bill.referringDoctorId,
+                amount: bill.commissionAmount,
+                labId
+            }, session);
         }
 
         // ✅ Record revenue

@@ -33,14 +33,10 @@ export const getAllTests = asyncHandler(async (req, res) => {
 // 3. Get test by ID
 export const getTestById = asyncHandler(async (req, res) => {
     const labId = req.user.labId;
-    const test = await testService.getTestById(
+    const test = await testService.getTestWithSpecializations(
         req.params.id,
         labId
     );
-
-    if (!test) {
-        throw new ApiError(404, "Test not found");
-    }
 
     res.status(200).json(
         new ApiResponse(200, test, "Test fetched successfully")

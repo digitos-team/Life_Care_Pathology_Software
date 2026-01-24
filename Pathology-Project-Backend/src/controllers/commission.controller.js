@@ -49,9 +49,27 @@ export const getAllCommissionsController = asyncHandler(async (req, res) => {
 export const getDoctorCommissionReportController = asyncHandler(async (req, res) => {
     const { doctorId } = req.params;
     const { startDate, endDate } = req.query;
+    const labId = req.user.labId;
 
-    const report = await commissionService.getDoctorCommissionReport(doctorId, startDate, endDate);
+    const report = await commissionService.getDoctorCommissionReportService(doctorId, labId, startDate, endDate);
     res.status(200).json(new ApiResponse(200, report, "Commission report fetched successfully"));
+});
+
+export const getAllDoctorsCommissionSummary = asyncHandler(async (req, res) => {
+    const { startDate, endDate } = req.query;
+    const labId = req.user.labId;
+
+    const summary = await commissionService.getAllDoctorsCommissionSummaryService(
+        labId,
+        startDate,
+        endDate
+    );
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, summary, "Commission summary retrieved successfully")
+        );
 });
 
 // Download Doctor Commission PDF
