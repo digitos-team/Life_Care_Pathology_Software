@@ -29,8 +29,7 @@ export const generateExpenseReportPDF = (
     .font("Helvetica")
     .fillColor("#7f8c8d")
     .text(
-      `Type: ${type.toUpperCase()} | Year: ${year}${
-        month ? ` | Month: ${month}` : ""
+      `Type: ${type.toUpperCase()} | Year: ${year}${month ? ` | Month: ${month}` : ""
       }`,
       { align: "center" },
     );
@@ -339,8 +338,7 @@ export const generateBillingReportPDF = (
   doc.moveDown(0.5);
   doc.fontSize(10).font("Helvetica").fillColor("gray");
   doc.text(
-    `Report Type: ${type.toUpperCase()} | Year: ${year}${
-      month ? ` | Month: ${month}` : ""
+    `Report Type: ${type.toUpperCase()} | Year: ${year}${month ? ` | Month: ${month}` : ""
     }`,
     { align: "center" },
   );
@@ -487,231 +485,381 @@ export const generateTestReportPDF = (doc, order, lab) => {
   const leftMargin = 40;
   const rightMargin = pageWidth - 40;
   const contentWidth = rightMargin - leftMargin;
+  const footerHeight = 110;
+  const maxContentY = pageHeight - footerHeight;
 
-  /* ================= HEADER ================= */
+  let currentY = 0;
+  let currentPage = 1;
 
-  doc.rect(0, 0, pageWidth, 6).fill(accentRed);
+  // Function to add header
+  const addHeader = () => {
+    // Top red bar
+    doc.rect(0, 0, pageWidth, 6).fill(accentRed);
 
-  doc.image(LOGO_PATH, leftMargin, 12, { width: 45, height: 45 });
+    // Logo (increased size)
+    doc.image(LOGO_PATH, leftMargin, 10, { width: 55, height: 55 });
 
-  doc
-    .fillColor(accentRed)
-    .font("Helvetica-Bold")
-    .fontSize(20)
-    .text("Life Care Diagnostic", leftMargin + 60, 14);
+    // Company name and title
+    doc
+      .fillColor(accentRed)
+      .font("Helvetica-Bold")
+      .fontSize(20)
+      .text("Life Care", leftMargin + 70, 14, { continued: false });
 
-  doc
-    .fillColor(primaryBlue)
-    .fontSize(11)
-    .text("Clinical Laboratory", leftMargin + 60, 38);
-
-  doc
-    .fontSize(7)
-    .fillColor(primaryBlue)
-    .text(
-      "Fully Automated Computerized Clinical Lab\nHealth Checkup • ECG • Home Visit • Sunday Open",
-      rightMargin - 160,
-      16,
-      { width: 160, align: "right" },
-    );
-
-  doc.rect(rightMargin - 160, 46, 160, 16).fill(primaryBlue);
-  doc
-    .fillColor("white")
-    .font("Helvetica-Bold")
-    .fontSize(9)
-    .text("LABORATORY REPORT", rightMargin - 160, 50, {
-      width: 160,
-      align: "center",
-    });
-
-  doc
-    .strokeColor(borderGray)
-    .lineWidth(1)
-    .moveTo(leftMargin, 70)
-    .lineTo(rightMargin, 70)
-    .stroke();
-
-  /* ================= PATIENT INFO ================= */
-
-  let currentY = 78;
-
-  doc
-    .fillColor(primaryBlue)
-    .font("Helvetica-Bold")
-    .fontSize(10)
-    .text("PATIENT INFORMATION", leftMargin, currentY);
-
-  doc
-    .strokeColor(accentRed)
-    .lineWidth(2)
-    .moveTo(leftMargin, currentY + 12)
-    .lineTo(leftMargin + 130, currentY + 12)
-    .stroke();
-
-  currentY += 18;
-
-  doc.rect(leftMargin, currentY, contentWidth, 50).fill(lightGray);
-  doc.rect(leftMargin, currentY, contentWidth, 50).stroke(borderGray);
-
-  doc.fontSize(8).font("Helvetica-Bold").fillColor(textGray);
-
-  const infoLeftX = leftMargin + 10;
-  const infoRightX = pageWidth / 2 + 10;
-  let infoY = currentY + 8;
-
-  doc.text("Patient Name:", infoLeftX, infoY);
-  doc
-    .font("Helvetica")
-    .fillColor(textDark)
-    .text(
-      order.patientId?.fullName?.toUpperCase() || "N/A",
-      infoLeftX + 90,
-      infoY,
-    );
-
-  infoY += 12;
-  doc
-    .font("Helvetica-Bold")
-    .fillColor(textGray)
-    .text("Age / Gender:", infoLeftX, infoY);
-  doc
-    .font("Helvetica")
-    .fillColor(textDark)
-    .text(
-      `${order.patientId?.age || "N/A"} / ${order.patientId?.gender || "N/A"}`,
-      infoLeftX + 90,
-      infoY,
-    );
-
-  infoY += 12;
-  doc
-    .font("Helvetica-Bold")
-    .fillColor(textGray)
-    .text("Patient ID:", infoLeftX, infoY);
-  doc
-    .font("Helvetica")
-    .fillColor(textDark)
-    .text(order.patientId?.patientId || "N/A", infoLeftX + 90, infoY);
-
-  infoY = currentY + 8;
-  doc
-    .font("Helvetica-Bold")
-    .fillColor(textGray)
-    .text("Ref. Doctor:", infoRightX, infoY);
-  doc
-    .font("Helvetica")
-    .fillColor(textDark)
-    .text(order.doctor?.name || "SELF", infoRightX + 95, infoY);
-
-  infoY += 12;
-  doc
-    .font("Helvetica-Bold")
-    .fillColor(textGray)
-    .text("Sample Collected:", infoRightX, infoY);
-  doc
-    .font("Helvetica")
-    .fillColor(textDark)
-    .text(
-      new Date(order.orderDate).toLocaleString("en-IN"),
-      infoRightX + 95,
-      infoY,
-    );
-
-  infoY += 12;
-  doc
-    .font("Helvetica-Bold")
-    .fillColor(textGray)
-    .text("Report Date:", infoRightX, infoY);
-  doc
-    .font("Helvetica")
-    .fillColor(textDark)
-    .text(new Date().toLocaleString("en-IN"), infoRightX + 95, infoY);
-
-  currentY += 62;
-
-  /* ================= TEST RESULTS ================= */
-
-  doc
-    .fillColor(primaryBlue)
-    .font("Helvetica-Bold")
-    .fontSize(10)
-    .text("TEST RESULTS", leftMargin, currentY);
-
-  doc
-    .strokeColor(accentRed)
-    .lineWidth(2)
-    .moveTo(leftMargin, currentY + 12)
-    .lineTo(leftMargin + 90, currentY + 12)
-    .stroke();
-
-  currentY += 18;
-
-  // Table Header
-  doc.rect(leftMargin, currentY, contentWidth, 16).fill(darkBlue);
-  doc.fillColor("white").font("Helvetica-Bold").fontSize(8);
-
-  doc.text("Test Name", leftMargin + 6, currentY + 5, { width: 200 });
-  doc.text("Result", leftMargin + 220, currentY + 5);
-  doc.text("Unit", leftMargin + 300, currentY + 5);
-  doc.text("Reference Range", leftMargin + 370, currentY + 5);
-
-  currentY += 18;
-
-  /* ===== TESTS WITH RESULTS ===== */
-  const tests = order.tests.slice(0, 4); // Limit to 4 tests for single page
-
-  let paramY = currentY;
-
-  tests.forEach((test, index) => {
-    const rowBg = index % 2 === 0 ? "#fafafa" : "#ffffff";
-
-    // Print TEST NAME first (bold, blue)
     doc
       .fillColor(primaryBlue)
+      .fontSize(20)
+      .text("Diagnostic", leftMargin + 160, 14, { continued: false });
+
+    doc
+      .fillColor(textDark)
+      .fontSize(11)
+      .font("Helvetica")
+      .text("Clinical Laboratory", leftMargin + 70, 40, { continued: false });
+
+    // Right side header info
+    doc
+      .fontSize(7)
+      .fillColor(textDark)
+      .font("Helvetica")
+      .text(
+        "Fully Automated Computerized Clinical Lab\nHealth Checkup • ECG • Home Visit • Sunday\nOpen\nDigital X-Ray • ECG",
+        rightMargin - 160,
+        14,
+        { width: 160, align: "right", lineGap: 1 },
+      );
+
+    // Blue bar with "LABORATORY REPORT"
+    doc.rect(rightMargin - 160, 48, 160, 14).fill(primaryBlue);
+    doc
+      .fillColor("white")
       .font("Helvetica-Bold")
-      .fontSize(8.5)
+      .fontSize(9)
+      .text("LABORATORY REPORT", rightMargin - 160, 52, {
+        width: 160,
+        align: "center",
+      });
+
+    doc
+      .strokeColor(borderGray)
+      .lineWidth(1)
+      .moveTo(leftMargin, 70)
+      .lineTo(rightMargin, 70)
+      .stroke();
+  };
+
+  // Function to add patient info
+  const addPatientInfo = () => {
+    let infoY = 78;
+
+    // Patient info box
+    doc.rect(leftMargin, infoY, contentWidth, 62).strokeColor(borderGray).stroke();
+
+    doc.fontSize(7).font("Helvetica-Bold").fillColor(textDark);
+
+    const infoLeftX = leftMargin + 8;
+    const infoRightX = pageWidth / 2 + 8;
+    let leftY = infoY + 6;
+    let rightY = infoY + 6;
+
+    // Left column
+    doc.text("Patient Name :", infoLeftX, leftY);
+    doc
+      .font("Helvetica")
+      .text(
+        order.patientId?.fullName?.toUpperCase() || "N/A",
+        infoLeftX + 70,
+        leftY,
+      );
+
+    leftY += 12;
+    doc.font("Helvetica-Bold").text("Age / Sex :", infoLeftX, leftY);
+    doc
+      .font("Helvetica")
+      .text(
+        `${order.patientId?.age || "N/A"} / ${order.patientId?.gender || "N/A"}`,
+        infoLeftX + 70,
+        leftY,
+      );
+
+    leftY += 12;
+    doc.font("Helvetica-Bold").text("Contact No. :", infoLeftX, leftY);
+    doc
+      .font("Helvetica")
+      .text(order.patientId?.phone || "N/A", infoLeftX + 70, leftY);
+
+    leftY += 12;
+    doc.font("Helvetica-Bold").text("Referred By :", infoLeftX, leftY);
+    doc
+      .font("Helvetica")
+      .text(order.doctor?.name || "SELF", infoLeftX + 70, leftY);
+
+    // Right column
+    doc.font("Helvetica-Bold").text("Patient ID :", infoRightX, rightY);
+    doc
+      .font("Helvetica")
+      .text(order.patientId?.patientId || "N/A", infoRightX + 95, rightY);
+
+    rightY += 12;
+    doc.font("Helvetica-Bold").text("Ref. Date & Time :", infoRightX, rightY);
+    doc
+      .font("Helvetica")
+      .text(
+        new Date(order.orderDate).toLocaleString("en-IN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false
+        }),
+        infoRightX + 95,
+        rightY,
+      );
+
+    rightY += 12;
+    doc.font("Helvetica-Bold").text("Reporting At Time :", infoRightX, rightY);
+    doc
+      .font("Helvetica")
+      .text(
+        new Date().toLocaleString("en-IN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false
+        }),
+        infoRightX + 95,
+        rightY,
+      );
+
+    rightY += 12;
+    doc.font("Helvetica-Bold").text("Collection Date & Time :", infoRightX, rightY);
+    doc
+      .font("Helvetica")
+      .text(
+        new Date(order.orderDate).toLocaleString("en-IN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false
+        }),
+        infoRightX + 95,
+        rightY,
+      );
+
+    return infoY + 74;
+  };
+
+  // Function to add footer
+  const addFooter = () => {
+    const footerY = pageHeight - 100;
+
+    // Explicitly position cursor to footer area to prevent page breaks
+    doc.y = footerY;
+
+    // Signature section
+    doc
+      .font("Helvetica")
+      .fontSize(7)
+      .fillColor(textGray)
+      .text("Signature", leftMargin + 60, footerY);
+
+    doc.text("Signature", rightMargin - 100, footerY);
+
+    // Names and designations
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(7)
+      .fillColor(textDark)
+      .text("Mr. Mayank Patil", leftMargin + 40, footerY + 20);
+
+    doc.text("Dr. A. Meshay", rightMargin - 110, footerY + 20);
+
+    doc
+      .font("Helvetica")
+      .fontSize(6.5)
+      .fillColor(textGray)
+      .text("M.Sc. (Medical Biochemist)", leftMargin + 25, footerY + 30);
+
+    doc.text("M.D Pathology", rightMargin - 105, footerY + 30);
+
+    doc
+      .fontSize(6.5)
+      .text("Lab. Technician", leftMargin + 45, footerY + 38);
+
+    doc.text("Reg. No. MCI - 12345", rightMargin - 115, footerY + 38);
+
+    // Bottom blue bar with contact info
+    const bottomBarY = pageHeight - 45;
+    doc.rect(0, bottomBarY, pageWidth, 45).fill(primaryBlue);
+
+    doc
+      .fillColor("white")
+      .fontSize(6.5)
+      .font("Helvetica")
+      .text(
+        "Address: Shop No.3, Yamuna Nagar, Nigdi, Pune - 411044",
+        leftMargin,
+        bottomBarY + 8,
+        { width: contentWidth, align: "center" }
+      );
+
+    doc
+      .fontSize(6)
+      .text(
+        "● Please note that's collection & Technical fees non-refundable ● Please Collect Your Reports Within 15 Days",
+        leftMargin,
+        bottomBarY + 18,
+        { width: contentWidth, align: "center" }
+      );
+
+    doc
+      .fontSize(6.5)
+      .text(
+        "● 9422315409 ● 8380097359 ● lifecarediagnostic29@gmail.com",
+        leftMargin,
+        bottomBarY + 28,
+        { width: contentWidth, align: "center" }
+      );
+  };
+
+  // Function to add table header
+  const addTableHeader = (y) => {
+    doc.rect(leftMargin, y, contentWidth, 14).fill("#e8eaf6");
+    doc.fillColor(textDark).font("Helvetica-Bold").fontSize(7);
+
+    doc.text("TEST", leftMargin + 6, y + 4, { width: 200 });
+    doc.text("RESULT", leftMargin + 240, y + 4, { width: 60, align: "center" });
+    doc.text("UNIT", leftMargin + 320, y + 4, { width: 60, align: "center" });
+    doc.text("BIOLOGICAL REF RANGE", leftMargin + 400, y + 4);
+
+    return y + 14;
+  };
+
+  // Function to draw vertical table borders
+  const drawTableBorders = (startY, endY) => {
+    doc.strokeColor(borderGray).lineWidth(0.5);
+    doc.moveTo(leftMargin, startY).lineTo(leftMargin, endY).stroke();
+    doc.moveTo(leftMargin + 235, startY).lineTo(leftMargin + 235, endY).stroke();
+    doc.moveTo(leftMargin + 315, startY).lineTo(leftMargin + 315, endY).stroke();
+    doc.moveTo(leftMargin + 395, startY).lineTo(leftMargin + 395, endY).stroke();
+    doc.moveTo(rightMargin, startY).lineTo(rightMargin, endY).stroke();
+  };
+
+  // Function to check if new page is needed
+  const checkPageBreak = (requiredSpace) => {
+    if (currentY + requiredSpace > maxContentY) {
+      doc.addPage();
+      currentPage++;
+      addHeader();
+      currentY = 78;
+      return true;
+    }
+    return false;
+  };
+
+  /* ================= START DOCUMENT ================= */
+
+  addHeader();
+  currentY = addPatientInfo();
+
+  /* ================= HAEMATOLOGY SECTION ================= */
+
+  doc
+    .fillColor(textDark)
+    .font("Helvetica-Bold")
+    .fontSize(9)
+    .text("HAEMATOLOGY", leftMargin, currentY, { lineBreak: false });
+
+  currentY += 14;
+
+  const tableStartY = currentY;
+  currentY = addTableHeader(currentY);
+
+  /* ===== RENDER ALL TESTS ===== */
+  const tests = order.tests || [];
+
+  tests.forEach((test, testIndex) => {
+    // Calculate required space for this test
+    const testRowHeight = 12;
+    const paramRowHeight = 12;
+    const paramCount = test.results?.length || 0;
+    const totalTestHeight = testRowHeight + (paramCount * paramRowHeight);
+
+    // Check if we need a new page for the entire test
+    // +14 for potential table header space on new page
+    if (checkPageBreak(totalTestHeight + 14)) {
+      // Add table header on new page
+      currentY = addTableHeader(currentY);
+    }
+
+    const testSectionStart = currentY;
+
+    // Main test name row
+    doc.rect(leftMargin, currentY, contentWidth, testRowHeight).fill("#fafafa");
+    doc.strokeColor(borderGray).lineWidth(0.5);
+    doc.moveTo(leftMargin, currentY).lineTo(rightMargin, currentY).stroke();
+
+    doc
+      .fillColor(textDark)
+      .font("Helvetica-Bold")
+      .fontSize(7.5)
       .text(
         test.testName || test.testId?.testName || "Test",
         leftMargin + 6,
-        paramY,
-        {
-          width: 200,
-          lineBreak: false,
-        },
+        currentY + 3.5,
+        { width: 225, align: "left" }
       );
 
-    // Move Y down after test name
-    paramY += 11;
+    currentY += testRowHeight;
 
-    // If test has results/parameters, print them
+    // Parameters
     if (test.results && test.results.length > 0) {
-      test.results.forEach((param) => {
+      test.results.forEach((param, paramIndex) => {
+        // No need to check page break here - already checked for entire test above
+
+        // Alternate row background
+        if (paramIndex % 2 === 1) {
+          doc.rect(leftMargin, currentY, contentWidth, paramRowHeight).fill("#ffffff");
+        } else {
+          doc.rect(leftMargin, currentY, contentWidth, paramRowHeight).fill("#fafafa");
+        }
+
+        // Horizontal line
+        doc.strokeColor(borderGray).lineWidth(0.5);
+        doc.moveTo(leftMargin, currentY).lineTo(rightMargin, currentY).stroke();
+
         // Parameter name (indented)
         doc
-          .fillColor(textGray)
+          .fillColor(textDark)
           .font("Helvetica")
           .fontSize(7)
-          .text(`  ${param.parameterName || "-"}`, leftMargin + 8, paramY, {
-            width: 195,
-            lineBreak: false,
+          .text(param.parameterName || "-", leftMargin + 20, currentY + 3.5, {
+            width: 210,
           });
 
-        // Result value
+        // Result value (centered)
         doc
           .fillColor(textDark)
           .font("Helvetica-Bold")
-          .fontSize(7.5)
-          .text(param.value || "-", leftMargin + 220, paramY, {
-            lineBreak: false,
+          .fontSize(7)
+          .text(param.value || "-", leftMargin + 240, currentY + 3.5, {
+            width: 70,
+            align: "center"
           });
 
-        // Unit
+        // Unit (centered)
         doc
-          .fillColor(textGray)
+          .fillColor(textDark)
+          .font("Helvetica")
           .fontSize(7)
-          .text(param.unit || "-", leftMargin + 300, paramY, {
-            lineBreak: false,
+          .text(param.unit || "-", leftMargin + 320, currentY + 3.5, {
+            width: 70,
+            align: "center"
           });
 
         // Reference range
@@ -726,51 +874,30 @@ export const generateTestReportPDF = (doc, order, lab) => {
             refRange = param.referenceRange;
           }
         }
-        doc.text(refRange, leftMargin + 370, paramY, {
-          width: 125,
-          lineBreak: false,
-        });
+        doc
+          .fillColor(textDark)
+          .fontSize(7)
+          .text(refRange, leftMargin + 400, currentY + 3.5, {
+            width: 115,
+          });
 
-        paramY += 11; // Move down after each parameter
+        currentY += paramRowHeight;
       });
-    } else {
-      // No results - show "Pending"
-      doc
-        .fillColor(textGray)
-        .fontSize(7)
-        .text("Pending", leftMargin + 220, paramY, { lineBreak: false });
-      paramY += 11; // Move down after pending message
     }
 
-    paramY += 5; // Extra space after test
+    // Bottom border of test section
+    doc.strokeColor(borderGray).lineWidth(0.5);
+    doc.moveTo(leftMargin, currentY).lineTo(rightMargin, currentY).stroke();
+
+    // Draw vertical borders for this test section
+    drawTableBorders(testSectionStart, currentY);
   });
 
-  /* ================= FOOTER ================= */
+  // Draw table header borders
+  drawTableBorders(tableStartY, tableStartY + 14);
 
-  const footerY = pageHeight - 70;
-
-  doc
-    .moveTo(leftMargin, footerY)
-    .lineTo(rightMargin, footerY)
-    .stroke(borderGray);
-
-  doc
-    .fontSize(7)
-    .fillColor(textGray)
-    .text(
-      "This report is electronically generated and does not require a signature.",
-      leftMargin,
-      footerY + 6,
-      { width: contentWidth, align: "center" },
-    );
-
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(7)
-    .fillColor(textDark)
-    .text("LAB TECHNICIAN", leftMargin + 40, footerY + 24);
-
-  doc.text("PATHOLOGIST", rightMargin - 120, footerY + 24);
+  /* ================= ADD FOOTER TO FINAL PAGE ================= */
+  addFooter();
 };
 
 export const generateDoctorCommissionReportPDF = (
