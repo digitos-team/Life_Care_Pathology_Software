@@ -89,12 +89,18 @@ export const recordPayment = async ({ billId, amount, paymentMethod, transaction
         }
 
         // ✅ Record revenue
+        // Note: bill.totalAmount is NET amount (after discount)
+        // Calculate GROSS by adding back the discount
+        const grossAmount = (bill.totalAmount || 0) + (bill.discountAmount || 0);
+
         const revenue = await revenueService.recordRevenue({
             billId: bill._id,
-            totalAmount: finalAmount,
+            totalAmount: grossAmount, // Store GROSS for display
+            discountAmount: bill.discountAmount || 0,
             commissionAmount: commission?.amount || 0,
+            netRevenue: (bill.totalAmount || 0) - (commission?.amount || 0), // NET after discount and commission
             labId,
-        }, session); // Pass session to revenue service
+        }, session);
 
         // 🎉 Commit transaction - All or nothing!
         await session.commitTransaction();

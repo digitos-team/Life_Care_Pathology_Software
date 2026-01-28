@@ -19,6 +19,7 @@ import Discounts from '../pages/Admin/Discounts';
 import AdminPatientRegistry from '../pages/Admin/PatientRegistry';
 import AdminBilling from '../pages/Admin/Billing';
 import Specializations from '../pages/Admin/Specializations';
+import Departments from '../pages/Admin/Departments';
 import CommissionReport from '../pages/Admin/CommissionReport';
 
 // Receptionist Pages
@@ -140,6 +141,11 @@ const AppRoutes = () => {
             <Route path="/specializations" element={
                 <ProtectedRoute allowedRoles={['Admin']}>
                     <PageWithLayout component={Specializations} />
+                </ProtectedRoute>
+            } />
+            <Route path="/departments" element={
+                <ProtectedRoute allowedRoles={['Admin']}>
+                    <PageWithLayout component={Departments} />
                 </ProtectedRoute>
             } />
             <Route path="/commission" element={

@@ -13,10 +13,20 @@ import revenueRoutes from "./routes/revenue.routes.js";
 import commissionRoutes from "./routes/commission.routes.js";
 import discountRoutes from "./routes/discount.routes.js";
 import specializationRoutes from "./routes/specialization.routes.js";
+import departmentRoutes from "./routes/department.routes.js";
+
 import { errorHandler } from "./middleware/errorHandler.middleware.js";
 import cookieParser from "cookie-parser";
 import path from "path";
 export const app = express();
+
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
+
 
 // CORS configuration
 app.use(
@@ -49,6 +59,7 @@ app.use("/api/revenue", revenueRoutes);
 app.use("/api/commission", commissionRoutes);
 app.use("/api/discounts", discountRoutes);
 app.use("/api/specializations", specializationRoutes);
+app.use("/api/departments", departmentRoutes);
 // Health check
 app.get("/", (req, res) => {
   res.json({ message: "Pathology Lab API is running" });

@@ -102,10 +102,17 @@ export const getPatientsByLab = async (labId, options = {}) => {
   // Build query filter
   const filter = { labId, isActive: true };
 
-  // Add search functionality (name or phone)
-  // Optimized to use Text Index instead of slow Regex
+  // Add search functionality (name, phone, or patientId)
+  // Use combination of exact match for patientId and text search for name/phone
   if (search && search.trim() !== "") {
-    filter.$text = { $search: search.trim() };
+    const searchTerm = search.trim();
+
+    // Search using $or: exact match for patientId OR text search for name/phone
+    filter.$or = [
+      { patientId: { $regex: searchTerm, $options: "i" } }, // Case-insensitive match for patientId
+      { phone: { $regex: searchTerm, $options: "i" } }, // Phone search
+      { fullName: { $regex: searchTerm, $options: "i" } } // Name search
+    ];
   }
 
   // Filter by gender

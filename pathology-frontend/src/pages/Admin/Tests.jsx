@@ -1,23 +1,12 @@
-
 import React, { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
-import { Microscope, Plus, Edit3, Trash2, X, AlertTriangle } from 'lucide-react';
+import { Microscope, Plus, Edit3, Trash2, X, AlertTriangle, Building2, Layers } from 'lucide-react';
 import { getLabTests, createLabTest, updateLabTest, deleteLabTest } from '../../api/admin/labTest.api';
 import { getAllSpecializations } from '../../api/admin/specialization.api';
+import { getDepartments } from '../../api/admin/department.api';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../contexts/AuthContext';
 import DeleteConfirmModal from '../../components/ui/DeleteConfirmModal';
-import { Layers } from 'lucide-react';
-
-const TEST_CATEGORIES = [
-    'Blood',
-    'Urine',
-    'Biochemistry',
-    'Hormone',
-    'Immunology',
-    'Microbiology',
-    'Other'
-];
 
 const LabTestManagement = () => {
     const { showToast } = useToast();
@@ -33,7 +22,7 @@ const LabTestManagement = () => {
     // Form data
     const [formData, setFormData] = useState({
         testName: '',
-        category: 'Blood',
+        departmentId: '',
         price: '',
         status: 'Active',
         labId: user?.labId,
@@ -44,6 +33,7 @@ const LabTestManagement = () => {
     const [formErrors, setFormErrors] = useState({});
     const [parameterErrors, setParameterErrors] = useState([]);
     const [availableSpecializations, setAvailableSpecializations] = useState([]);
+    const [departments, setDepartments] = useState([]);
 
     // List state
     const [tests, setTests] = useState([]);
@@ -53,17 +43,27 @@ const LabTestManagement = () => {
     useEffect(() => {
         fetchTests();
         fetchSpecializations();
+        fetchDepartments();
     }, []);
 
     const fetchSpecializations = async () => {
         try {
             const response = await getAllSpecializations();
-            // Handle nested data structures correctly
             const data = response.data?.specializations || response.specializations || response.data || response;
             setAvailableSpecializations(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Failed to fetch specializations:', error);
             setAvailableSpecializations([]);
+        }
+    };
+
+    const fetchDepartments = async () => {
+        try {
+            const response = await getDepartments();
+            setDepartments(response.data || []);
+        } catch (error) {
+            console.error('Failed to fetch departments:', error);
+            showToast('Failed to fetch departments', 'error');
         }
     };
 
@@ -87,7 +87,7 @@ const LabTestManagement = () => {
 
         // Basic validation
         if (!formData.testName?.trim()) errors.testName = 'Test name is required';
-        if (!formData.category) errors.category = 'Category is required';
+        if (!formData.departmentId) errors.departmentId = 'Department is required';
         if (formData.price === '' || Number(formData.price) < 0) {
             errors.price = 'Price must be >= 0';
         }
@@ -143,7 +143,7 @@ const LabTestManagement = () => {
         try {
             const submitData = {
                 testName: formData.testName,
-                category: formData.category,
+                departmentId: formData.departmentId,
                 price: Number(formData.price),
                 status: formData.status,
                 labId: formData.labId,
@@ -173,7 +173,7 @@ const LabTestManagement = () => {
     const resetForm = () => {
         setFormData({
             testName: '',
-            category: 'Blood',
+            departmentId: '',
             price: '',
             status: 'Active',
             labId: user?.labId,
@@ -267,7 +267,7 @@ const LabTestManagement = () => {
         setEditingTest(test);
         setFormData({
             testName: test.testName || '',
-            category: test.category || 'Blood',
+            departmentId: test.departmentId?._id || test.departmentId || '', // Handle populated or raw ID
             price: test.price?.toString() || '',
             status: test.status || 'Active',
             labId: test.labId || user?.labId,
@@ -365,22 +365,23 @@ const LabTestManagement = () => {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Category *
+                                        Department *
                                     </label>
                                     <select
-                                        value={formData.category}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                                        className={`w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500 ${formErrors.category ? 'border-red-500' : 'border-gray-300'
+                                        value={formData.departmentId}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, departmentId: e.target.value }))}
+                                        className={`w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500 ${formErrors.departmentId ? 'border-red-500' : 'border-gray-300'
                                             }`}
                                     >
-                                        {TEST_CATEGORIES.map(category => (
-                                            <option key={category} value={category}>
-                                                {category}
+                                        <option value="">Select Department</option>
+                                        {departments.map(dept => (
+                                            <option key={dept._id} value={dept._id}>
+                                                {dept.name}
                                             </option>
                                         ))}
                                     </select>
-                                    {formErrors.category && (
-                                        <p className="text-red-500 text-xs mt-1">{formErrors.category}</p>
+                                    {formErrors.departmentId && (
+                                        <p className="text-red-500 text-xs mt-1">{formErrors.departmentId}</p>
                                     )}
                                 </div>
                             </div>
@@ -666,7 +667,7 @@ const LabTestManagement = () => {
                                             Test Name
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Category
+                                            Department
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Parameters
@@ -692,8 +693,9 @@ const LabTestManagement = () => {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                                                    {test.category}
+                                                <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 flex items-center gap-1 w-fit">
+                                                    <Building2 size={12} />
+                                                    {test.departmentId?.name || 'Unknown'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-sm text-gray-500">
@@ -707,7 +709,9 @@ const LabTestManagement = () => {
                                                         </span>
                                                     ))}
                                                     {(!test.specializations || !Array.isArray(test.specializations) || test.specializations.length === 0) && (
-                                                        <span className="text-slate-300 text-xs italic">N/A</span>
+                                                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-[10px] font-bold">
+                                                            Generalized
+                                                        </span>
                                                     )}
                                                 </div>
                                             </td>

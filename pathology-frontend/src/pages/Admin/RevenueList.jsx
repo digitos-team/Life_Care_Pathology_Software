@@ -112,6 +112,7 @@ const RevenueList = () => {
     const [revenues, setRevenues] = useState([]);
     const [stats, setStats] = useState({
         totalRevenue: 0,
+        totalDiscount: 0,
         totalCommission: 0,
         netRevenue: 0,
         count: 0
@@ -228,17 +229,17 @@ const RevenueList = () => {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <Card>
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-600 font-medium">Total Revenue</p>
-                            <p className="text-xl font-bold text-emerald-600 mt-1">
+                            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Gross Revenue</p>
+                            <p className="text-xl font-black text-slate-800 mt-1">
                                 {formatCurrency(stats.totalRevenue)}
                             </p>
                         </div>
-                        <div className="p-2 bg-emerald-50 rounded-lg">
-                            <TrendingUp className="text-emerald-600" size={20} />
+                        <div className="p-2 bg-slate-100 rounded-lg">
+                            <TrendingUp className="text-slate-600" size={18} />
                         </div>
                     </div>
                 </Card>
@@ -246,13 +247,27 @@ const RevenueList = () => {
                 <Card>
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-600 font-medium">Commission</p>
+                            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Discount</p>
+                            <p className="text-xl font-black text-emerald-600 mt-1">
+                                {formatCurrency(stats.totalDiscount)}
+                            </p>
+                        </div>
+                        <div className="p-2 bg-emerald-50 rounded-lg">
+                            <TrendingUp className="text-emerald-600" size={18} />
+                        </div>
+                    </div>
+                </Card>
+
+                <Card>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Commission</p>
                             <p className="text-xl font-bold text-orange-600 mt-1">
                                 {formatCurrency(stats.totalCommission)}
                             </p>
                         </div>
                         <div className="p-2 bg-orange-50 rounded-lg">
-                            <DollarSign className="text-orange-600" size={20} />
+                            <DollarSign className="text-orange-600" size={18} />
                         </div>
                     </div>
                 </Card>
@@ -260,13 +275,13 @@ const RevenueList = () => {
                 <Card>
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-600 font-medium">Net Revenue</p>
-                            <p className="text-xl font-bold text-indigo-600 mt-1">
+                            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Net Revenue</p>
+                            <p className="text-xl font-black text-indigo-600 mt-1">
                                 {formatCurrency(stats.netRevenue)}
                             </p>
                         </div>
                         <div className="p-2 bg-indigo-50 rounded-lg">
-                            <TrendingUp className="text-indigo-600" size={20} />
+                            <TrendingUp className="text-indigo-600" size={18} />
                         </div>
                     </div>
                 </Card>
@@ -274,13 +289,13 @@ const RevenueList = () => {
                 <Card>
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-600 font-medium">Total Records</p>
-                            <p className="text-xl font-bold text-blue-600 mt-1">
+                            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Records</p>
+                            <p className="text-xl font-black text-blue-600 mt-1">
                                 {stats.count || 0}
                             </p>
                         </div>
                         <div className="p-2 bg-blue-50 rounded-lg">
-                            <Eye className="text-blue-600" size={20} />
+                            <Eye className="text-blue-600" size={18} />
                         </div>
                     </div>
                 </Card>
@@ -348,7 +363,10 @@ const RevenueList = () => {
                                             Bill ID
                                         </th>
                                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Total Amount
+                                            Total Amount (Gross)
+                                        </th>
+                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Discount
                                         </th>
                                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Commission
@@ -370,15 +388,18 @@ const RevenueList = () => {
                                                 <div className="text-xs text-gray-500">{formatTime(revenue.createdAt)}</div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                {revenue.billId?._id?.substring(0, 8) || 'N/A'}...
+                                                {revenue.billId?.billNumber || 'N/A'}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-emerald-600">
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-slate-700">
                                                 {formatCurrency(revenue.totalAmount)}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-orange-600">
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-emerald-600">
+                                                -{formatCurrency(revenue.discountAmount || 0)}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-orange-600 font-bold">
                                                 {formatCurrency(revenue.commissionAmount)}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-indigo-600">
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-black text-indigo-600">
                                                 {formatCurrency(revenue.netRevenue)}
                                             </td>
                                         </tr>

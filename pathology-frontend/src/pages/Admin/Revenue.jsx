@@ -302,6 +302,7 @@ const Revenue = () => {
 
     const [stats, setStats] = useState({
         totalRevenue: 0,
+        totalDiscount: 0,
         totalCommission: 0,
         netRevenue: 0
     });
@@ -439,13 +440,27 @@ const Revenue = () => {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <Card>
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-600 font-medium">Total Revenue</p>
-                            <p className="text-2xl font-bold text-emerald-600 mt-1">
+                            <p className="text-sm text-gray-600 font-medium">Total Revenue (Gross)</p>
+                            <p className="text-2xl font-bold text-slate-800 mt-1">
                                 {formatCurrency(stats.totalRevenue)}
+                            </p>
+                        </div>
+                        <div className="p-3 bg-slate-100 rounded-lg">
+                            <TrendingUp className="text-slate-600" size={24} />
+                        </div>
+                    </div>
+                </Card>
+
+                <Card>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-gray-600 font-medium">Total Discount</p>
+                            <p className="text-2xl font-bold text-emerald-600 mt-1">
+                                {formatCurrency(stats.totalDiscount)}
                             </p>
                         </div>
                         <div className="p-3 bg-emerald-50 rounded-lg">
@@ -551,6 +566,18 @@ const Revenue = () => {
                                             {viewMode === 'monthly' ? 'Month' : 'Date'}
                                         </th>
                                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Total Amount (Gross)
+                                        </th>
+                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Discount
+                                        </th>
+                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Commission
+                                        </th>
+                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Net Revenue
+                                        </th>
+                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Count
                                         </th>
                                         <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -571,16 +598,19 @@ const Revenue = () => {
                                                     : `${item._id.day}/${item._id.month}/${item._id.year}`
                                                 }
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-emerald-600">
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-slate-700">
                                                 {formatCurrency(item.totalRevenue)}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-orange-600">
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-emerald-600">
+                                                -{formatCurrency(item.totalDiscount || 0)}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-orange-600 font-bold">
                                                 {formatCurrency(item.totalCommission)}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-indigo-600">
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-black text-indigo-600">
                                                 {formatCurrency(item.netRevenue)}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-slate-500 font-bold">
                                                 {item.count}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-center">

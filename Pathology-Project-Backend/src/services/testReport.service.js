@@ -237,7 +237,7 @@ export const updateTestOrder = async (orderId, { addTestIds = [], removeTestItem
     }
 
     bill.items = billItems;
-    bill.totalAmount = Math.round(netTotal);
+    bill.totalAmount = Math.round(netTotal); // Amount after discount (what patient pays before commission)
     bill.commissionAmount = billCommissionAmount;
     bill.commissionType = billCommissionType;
 
