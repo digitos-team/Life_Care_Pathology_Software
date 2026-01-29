@@ -11,10 +11,15 @@ const EXPENSE_CATEGORIES = [
 ];
 
 const EditExpenseModal = ({ expense, onClose, onSubmit, submitting }) => {
+    // Initial state needs to back-calculate rate if it's stored as total
+    const initialRate = (expense.quantity > 0 && expense.amount)
+        ? (expense.amount / expense.quantity)
+        : (expense.amount || '');
+
     const [formData, setFormData] = useState({
         title: expense.title || '',
         category: expense.category || 'MISCELLANEOUS',
-        amount: expense.amount || '',
+        amount: initialRate,
         date: expense.date ? new Date(expense.date).toISOString().split('T')[0] : '',
         quantity: expense.quantity || '',
         unit: expense.unit || '',
@@ -155,7 +160,7 @@ const EditExpenseModal = ({ expense, onClose, onSubmit, submitting }) => {
                     {/* Amount */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Amount (₹) *
+                            Amount per Unit (₹) *
                         </label>
                         <input
                             type="number"
@@ -167,6 +172,11 @@ const EditExpenseModal = ({ expense, onClose, onSubmit, submitting }) => {
                                 }`}
                             placeholder="0.00"
                         />
+                        {formData.amount && formData.quantity && parseFloat(formData.quantity) > 0 && (
+                            <p className="mt-2 text-sm font-bold text-indigo-600 bg-indigo-50 p-2 rounded-lg border border-indigo-100 inline-block">
+                                Total Calculation: ₹{formData.amount} × {formData.quantity} = ₹{(parseFloat(formData.amount) * parseFloat(formData.quantity)).toFixed(2)}
+                            </p>
+                        )}
                         {errors.amount && (
                             <p className="text-red-500 text-xs mt-1">{errors.amount}</p>
                         )}

@@ -68,19 +68,26 @@ export const createBatchExpensesService = async (expenses, labId) => {
 
 // 2. Update Expense
 export const updateExpenseService = async (expenseId, updates) => {
-  // Recalculate total amount if both quantity and rate (amount) are provided
-  if (updates.quantity && updates.amount) {
-    updates.amount = updates.amount * updates.quantity;
+  const existing = await Expense.findById(expenseId);
+  if (!existing) {
+    throw new ApiError(404, "Expense not found");
+  }
+
+  // Treat updates.amount as NEW RATE if quantity exists
+  const r = updates.amount !== undefined ? updates.amount : (existing.quantity > 0 ? (existing.amount / existing.quantity) : existing.amount);
+  const q = updates.quantity !== undefined ? updates.quantity : existing.quantity;
+
+  if (q > 0) {
+    updates.amount = r * q; // Store total = rate * qty
   }
 
   const expense = await Expense.findByIdAndUpdate(expenseId, updates, {
     new: true,
   });
-  if (!expense) {
-    throw new ApiError(404, "Expense not found");
-  }
+
   return expense;
 };
+
 
 // 3. List Expenses (with optional filters)
 export const listExpensesService = async (adminId, query) => {

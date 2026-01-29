@@ -60,7 +60,14 @@ const CommissionReport = () => {
     useEffect(() => {
         fetchSummary();
         fetchDoctorsList();
-    }, [dateRange]);
+    }, []);
+
+    const handleApplyFilter = () => {
+        fetchSummary();
+        if (viewMode === 'detail' && selectedDoctor) {
+            handleViewDetail(selectedDoctor);
+        }
+    };
 
     const handleViewDetail = async (doctor) => {
         try {
@@ -147,6 +154,14 @@ const CommissionReport = () => {
                             onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
                         />
                     </div>
+                    <button
+                        onClick={handleApplyFilter}
+                        disabled={loading}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-200 hover:bg-indigo-700 disabled:bg-slate-300 transition-all flex items-center gap-2"
+                    >
+                        <Filter size={14} />
+                        {loading ? 'Processing...' : 'Filter'}
+                    </button>
                 </div>
             </div>
 
@@ -269,10 +284,6 @@ const CommissionReport = () => {
                                     <div className="flex justify-between items-center text-sm">
                                         <span className="text-indigo-200">Total Bills</span>
                                         <span className="font-black">{detailedReport?.summary?.totalBills || 0}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center text-sm">
-                                        <span className="text-indigo-200">Commission</span>
-                                        <span className="font-black text-emerald-300">₹{detailedReport?.summary?.totalCommissionAmount?.toLocaleString() || 0}</span>
                                     </div>
                                 </div>
                                 <button

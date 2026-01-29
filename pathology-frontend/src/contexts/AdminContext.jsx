@@ -42,7 +42,7 @@ export const AdminProvider = ({ children }) => {
   const metrics = useMemo(() => {
     // Current month revenue
     const currentMonth = new Date().getMonth() + 1;
-    const monthlyRevenueData = revenueAnalytics.monthly?.find(m => m.month === currentMonth);
+    const monthlyRevenueData = revenueAnalytics.monthly?.find(m => m._id === currentMonth);
     const monthlyRevenue = monthlyRevenueData ? monthlyRevenueData.netRevenue : 0; // Use netRevenue
 
     return {

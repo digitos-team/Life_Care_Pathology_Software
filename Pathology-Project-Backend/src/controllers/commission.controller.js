@@ -30,10 +30,13 @@ export const getAllCommissionsController = asyncHandler(async (req, res) => {
 
     if (startDate && endDate) {
         start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
         end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
     } else if (type === 'monthly' && year && month) {
         start = new Date(year, month - 1, 1);
-        end = new Date(year, month, 0, 23, 59, 59);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(year, month, 0, 23, 59, 59, 999);
     } else if (type === 'daily' && date) {
         start = new Date(date);
         start.setHours(0, 0, 0, 0);
