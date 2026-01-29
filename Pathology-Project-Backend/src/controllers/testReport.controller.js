@@ -199,6 +199,16 @@ export const getPatientReportsController = asyncHandler(async (req, res) => {
 });
 
 /**
+ * 5d. Get all completed reports for lab
+ */
+export const getAllReportsController = asyncHandler(async (req, res) => {
+  const labId = req.user.labId;
+  const { search, page = 1, limit = 50 } = req.query;
+  const data = await testOrderService.getAllReportsForLab(labId, parseInt(limit), search, parseInt(page));
+  res.json(new ApiResponse(200, data, "All lab reports fetched with pagination"));
+});
+
+/**
  * 6. Bulk submit results via bill
  */
 export const submitBulkResultsController = asyncHandler(async (req, res) => {
@@ -374,4 +384,20 @@ export const getDailyStatsController = asyncHandler(async (req, res) => {
   const labId = req.user.labId;
   const stats = await testOrderService.getDailyStats(labId);
   res.status(200).json(new ApiResponse(200, stats, "Daily stats fetched"));
+});
+
+/**
+ * 11. Unfinalize Report (Undo for Correction)
+ */
+export const unfinalizeReportController = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const labId = req.user.labId;
+
+  if (!orderId) {
+    throw new ApiError(400, "orderId is required");
+  }
+
+  const result = await testOrderService.unfinalizeReport(orderId, labId);
+
+  res.status(200).json(new ApiResponse(200, result, "Report unlocked for revision. It will now appear in Pending Orders."));
 });

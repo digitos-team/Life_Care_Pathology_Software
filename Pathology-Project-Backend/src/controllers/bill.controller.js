@@ -23,13 +23,21 @@ export const getPatientBillsController = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, bills, "Patient bills fetched successfully"));
 });
 
-// Get all lab bills
+// Get all lab bills (with pagination and search)
 export const getLabBillsController = asyncHandler(async (req, res) => {
   const labId = req.user.labId;
-  const bills = await billService.getLabBills(labId);
+  const { limit, page, search } = req.query;
+
+  const data = await billService.getLabBills(
+    labId,
+    limit ? parseInt(limit) : 12,
+    search || "",
+    page ? parseInt(page) : 1
+  );
+
   res
     .status(200)
-    .json(new ApiResponse(200, bills, "Lab bills fetched successfully"));
+    .json(new ApiResponse(200, data, "Lab bills fetched successfully"));
 });
 
 // Get Billing Report

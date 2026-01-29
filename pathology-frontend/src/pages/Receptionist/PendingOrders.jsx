@@ -242,6 +242,18 @@ const PendingOrders = () => {
                                                                             Enter Result
                                                                         </button>
                                                                     )}
+                                                                    {test.status === 'COMPLETED' && (
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setSelectedTestForResults({ orderId: order._id, test, patientId: order.patientId?._id });
+                                                                            }}
+                                                                            className="px-3 py-1 bg-amber-50 text-amber-600 rounded-lg text-xs font-bold hover:bg-amber-100 transition-colors flex items-center gap-1"
+                                                                        >
+                                                                            <FileText size={14} />
+                                                                            Edit Result
+                                                                        </button>
+                                                                    )}
                                                                     {test.enteredAt && test.status === 'COMPLETED' && (
                                                                         <span className="text-[10px] text-slate-400 font-medium px-2">
                                                                             {new Date(test.enteredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

@@ -13,7 +13,9 @@ import {
   deleteTestOrderController,
   downloadTestReportPDFController,
   getPatientReportsController,
+  getAllReportsController,
   getDailyStatsController,
+  unfinalizeReportController,
 } from "../controllers/testReport.controller.js";
 import {
   authMiddleware,
@@ -65,10 +67,16 @@ router.get("/patient/:patientId/reports", getPatientCompletedReportsController);
 // Get Patient History (Combined)
 router.get("/patient/:patientId", getPatientTestHistoryController);
 
+// Get All Completed Reports (Global for lab)
+router.get("/reports/all", getAllReportsController);
+
 // Download Test Report PDF
 router.get("/:orderId/download", downloadTestReportPDFController);
 
 // Delete Test Order
 router.delete("/:orderId", deleteTestOrderController);
+
+// Unfinalize Report (Undo for Correction)
+router.post("/unfinalize/:orderId", unfinalizeReportController);
 
 export default router;

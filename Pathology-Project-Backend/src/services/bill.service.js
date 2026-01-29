@@ -1,4 +1,5 @@
 import Bill from "../models/bill.model.js";
+import Patient from "../models/patient.model.js";
 import Expense from "../models/expense.model.js";
 import Revenue from "../models/revenue.model.js";
 import TestOrder from "../models/testorder.model.js";
@@ -163,11 +164,45 @@ export const getPatientBills = async (patientId, labId) => {
   return await Bill.find({ patientId, labId }).sort({ createdAt: -1 });
 };
 
-// Get all bills for a lab
-export const getLabBills = async (labId) => {
-  return await Bill.find({ labId })
-    .populate("patientId", "fullName phone")
-    .sort({ createdAt: -1 });
+// Get all bills for a lab (with pagination and search)
+export const getLabBills = async (labId, limit = 12, search = "", page = 1) => {
+  let query = { labId };
+
+  if (search) {
+    // 1. Find matching patients
+    const patients = await Patient.find({
+      $or: [
+        { fullName: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
+      ],
+    }).select("_id");
+
+    const patientIds = patients.map(p => p._id);
+
+    // 2. Build query for bill number OR patient ID
+    query.$or = [
+      { billNumber: { $regex: search, $options: "i" } },
+      { patientId: { $in: patientIds } }
+    ];
+  }
+
+  const skip = (page - 1) * limit;
+
+  const [bills, total] = await Promise.all([
+    Bill.find(query)
+      .populate("patientId", "fullName phone")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Bill.countDocuments(query)
+  ]);
+
+  return {
+    bills,
+    total,
+    pages: Math.ceil(total / limit),
+    currentPage: parseInt(page)
+  };
 };
 
 // Get Billing Report (Daily/Monthly)

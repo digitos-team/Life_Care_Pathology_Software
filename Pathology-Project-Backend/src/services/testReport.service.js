@@ -364,10 +364,7 @@ export const submitTestResults = async (
 
   if (!testItem) throw new ApiError(404, "Test not found in this order");
 
-  // SAFETY LOCK: Prevent silent edits on completed tests
-  if (testItem.status === "COMPLETED") {
-    throw new ApiError(403, "Completed tests are locked. Reopen to edit.");
-  }
+  // Note: SAFETY LOCK removed to allow editing after unlocking reports via "Revise" feature
 
   if (results && Array.isArray(results)) {
     results.forEach((inputResult) => {
@@ -468,6 +465,45 @@ export const getPatientReports = async (patientId, labId) => {
     .populate("patientId", "fullName phone age gender reportPdfPath")
     .populate("doctor", "name")
     .sort({ updatedAt: -1 });
+};
+
+// 5c. Get All Completed Reports for a Lab
+export const getAllReportsForLab = async (labId, limit = 12, search = "", page = 1) => {
+  let query = {
+    labId,
+    overallStatus: "COMPLETED",
+  };
+
+  if (search) {
+    const patients = await Patient.find({
+      $or: [
+        { fullName: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
+      ],
+    }).select("_id");
+
+    const patientIds = patients.map(p => p._id);
+    query.patientId = { $in: patientIds };
+  }
+
+  const skip = (page - 1) * limit;
+
+  const [reports, total] = await Promise.all([
+    TestOrder.find(query)
+      .populate("patientId", "fullName phone age gender reportPdfPath")
+      .populate("doctor", "name")
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    TestOrder.countDocuments(query)
+  ]);
+
+  return {
+    reports,
+    total,
+    pages: Math.ceil(total / limit),
+    currentPage: parseInt(page)
+  };
 };
 
 // 6. Bulk Submit Results by Bill
@@ -636,4 +672,28 @@ export const getDailyStats = async (labId) => {
   ]);
 
   return stats[0] || { totalOrders: 0, totalTests: 0 };
+};
+
+// 10. Unfinalize Report (Option 1 for Correction)
+export const unfinalizeReport = async (orderId, labId) => {
+  const order = await TestOrder.findOne({ _id: orderId, labId });
+  if (!order) throw new ApiError(404, "Report not found");
+
+  if (order.overallStatus !== "COMPLETED") {
+    throw new ApiError(400, "Only fully completed reports can be unfinalized");
+  }
+
+  // 1. Reset Order Status to PARTIAL (not PENDING)
+  // This ensures it shows in Pending Orders, but tests remain COMPLETED
+  // so the Edit button appears for each test
+  order.overallStatus = "PARTIAL";
+
+  // 2. Clear Patient PDF path (since it's now invalid)
+  await Patient.findByIdAndUpdate(order.patientId, {
+    reportPdfPath: null,
+    reportStatus: "pending"
+  });
+
+  await order.save();
+  return order;
 };

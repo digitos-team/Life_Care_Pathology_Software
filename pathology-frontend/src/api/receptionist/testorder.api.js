@@ -120,6 +120,29 @@ export const getPatientReports = async (patientId) => {
         throw error;
     }
 };
+
+// Get All Reports (Global for lab)
+export const getAllReports = async (search = '', page = 1, limit = 12) => {
+    try {
+        const queryParams = new URLSearchParams({
+            search,
+            page: page.toString(),
+            limit: limit.toString()
+        }).toString();
+
+        const response = await axiosClient.get(`/tests/reports/all?${queryParams}`);
+        const apiResponse = response.data;
+        if (apiResponse && apiResponse.success !== false) {
+            return apiResponse.data || { reports: [], total: 0, pages: 0, currentPage: 1 };
+        } else {
+            throw new Error(apiResponse?.message || 'Failed to fetch all reports');
+        }
+    } catch (error) {
+        console.error('Error fetching all reports:', error);
+        throw error;
+    }
+};
+
 // Submit bulk results by bill
 export const submitBulkResultsByBill = async (billId, resultData) => {
     try {
@@ -180,6 +203,22 @@ export const getDailyStats = async () => {
         }
     } catch (error) {
         console.error('Error fetching daily stats:', error);
+        throw error;
+    }
+};
+
+// Unfinalize Report (Undo for Correction)
+export const unfinalizeReport = async (orderId) => {
+    try {
+        const response = await axiosClient.post(`/tests/unfinalize/${orderId}`);
+        const apiResponse = response.data;
+        if (apiResponse && apiResponse.success !== false) {
+            return apiResponse.data;
+        } else {
+            throw new Error(apiResponse?.message || 'Failed to unlock report');
+        }
+    } catch (error) {
+        console.error('Error unlocking report:', error);
         throw error;
     }
 };
