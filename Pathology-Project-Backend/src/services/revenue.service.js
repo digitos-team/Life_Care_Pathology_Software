@@ -49,7 +49,14 @@ export const getRevenueWithPaginationService = async (labId, query) => {
                 totalRevenue: { $sum: "$totalAmount" },
                 totalDiscount: { $sum: "$discountAmount" },
                 totalCommission: { $sum: "$commissionAmount" },
-                netRevenue: { $sum: "$netRevenue" },
+                netRevenue: {
+                    $sum: {
+                        $subtract: [
+                            "$totalAmount",
+                            { $add: ["$discountAmount", "$commissionAmount"] }
+                        ]
+                    }
+                },
                 count: { $sum: 1 },
             },
         },
@@ -166,7 +173,14 @@ export const getRevenueAnalytics = async ({
                             totalRevenue: { $sum: "$totalAmount" },
                             totalDiscount: { $sum: "$discountAmount" },
                             totalCommission: { $sum: "$commissionAmount" },
-                            netRevenue: { $sum: "$netRevenue" },
+                            netRevenue: {
+                                $sum: {
+                                    $subtract: [
+                                        "$totalAmount",
+                                        { $add: ["$discountAmount", "$commissionAmount"] }
+                                    ]
+                                }
+                            },
                             count: { $sum: 1 },
                         },
                     },
@@ -187,7 +201,14 @@ export const getRevenueAnalytics = async ({
                             totalRevenue: { $sum: "$totalAmount" },
                             totalDiscount: { $sum: "$discountAmount" },
                             totalCommission: { $sum: "$commissionAmount" },
-                            netRevenue: { $sum: "$netRevenue" },
+                            netRevenue: {
+                                $sum: {
+                                    $subtract: [
+                                        "$totalAmount",
+                                        { $add: ["$discountAmount", "$commissionAmount"] }
+                                    ]
+                                }
+                            },
                             count: { $sum: 1 },
                         },
                     },
@@ -215,7 +236,14 @@ export const getRevenueAnalytics = async ({
                                 totalRevenue: { $sum: "$totalAmount" },
                                 totalDiscount: { $sum: "$discountAmount" },
                                 totalCommission: { $sum: "$commissionAmount" },
-                                netRevenue: { $sum: "$netRevenue" },
+                                netRevenue: {
+                                    $sum: {
+                                        $subtract: [
+                                            "$totalAmount",
+                                            { $add: ["$discountAmount", "$commissionAmount"] }
+                                        ]
+                                    }
+                                },
                                 count: { $sum: 1 },
                             },
                         },

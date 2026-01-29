@@ -112,8 +112,12 @@ const BatchExpenseModal = ({ onClose, onSubmit, submitting, initialMode = 'daily
         onSubmit(formData);
     };
 
-    // Calculate total
-    const totalAmount = rows.reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
+    // Calculate total (account for Rate * Qty for all rows)
+    const totalAmount = rows.reduce((sum, row) => {
+        const rate = parseFloat(row.amount) || 0;
+        const qty = row.category === 'LAB_MATERIALS' ? (parseFloat(row.quantity) || 0) : 1;
+        return sum + (rate * (qty || 1));
+    }, 0);
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -206,7 +210,7 @@ const BatchExpenseModal = ({ onClose, onSubmit, submitting, initialMode = 'daily
                                 <tr>
                                     <th className="py-3 px-4 w-[25%]">Title</th>
                                     <th className="py-3 px-4 w-[15%]">Category</th>
-                                    <th className="py-3 px-4 w-[15%] text-right">Amount (₹)</th>
+                                    <th className="py-3 px-4 w-[15%] text-right">Rate (₹/Unit)</th>
                                     {/* Dynamic Columns Header */}
                                     <th className="py-3 px-4 w-[35%]">Details (For Lab Materials)</th>
                                     <th className="py-3 px-4 w-[5%]"></th>
@@ -242,9 +246,14 @@ const BatchExpenseModal = ({ onClose, onSubmit, submitting, initialMode = 'daily
                                                 min="0"
                                                 value={row.amount}
                                                 onChange={(e) => handleChange(row.id, 'amount', e.target.value)}
-                                                placeholder="0.00"
+                                                placeholder="Rate"
                                                 className="w-full px-3 py-2 border border-gray-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm text-right"
                                             />
+                                            {row.category === 'LAB_MATERIALS' && row.amount && row.quantity && (
+                                                <p className="text-[10px] text-indigo-500 mt-1 text-right font-medium">
+                                                    Total: ₹{(parseFloat(row.amount) * parseFloat(row.quantity)).toFixed(2)}
+                                                </p>
+                                            )}
                                         </td>
                                         {/* Dynamic Fields */}
                                         <td className="p-3">

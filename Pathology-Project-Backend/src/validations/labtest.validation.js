@@ -13,24 +13,15 @@ const parameterSchema = Joi.object({
   ).min(1).required(),
 });
 
-const categoryEnum = [
-  "Blood",
-  "Urine",
-  "Biochemistry",
-  "Hormone",
-  "Immunology",
-  "Microbiology",
-  "Other",
-];
-
 export const createTest = {
   body: Joi.object({
     testName: Joi.string().trim().min(2).required(),
-    category: Joi.string()
-      .valid(...categoryEnum)
-      .required(),
-    price: Joi.number().positive().required(),
+    departmentId: Joi.string().required(),
+    price: Joi.number().min(0).required(),
     parameters: Joi.array().items(parameterSchema).min(1).required(),
+    specializationIds: Joi.array().items(Joi.string()).optional(),
+    status: Joi.string().valid("Active", "Inactive").optional(),
+    labId: Joi.string().optional(),
   }),
 };
 
@@ -38,11 +29,11 @@ export const createTest = {
 export const updateTest = {
   body: Joi.object({
     testName: Joi.string().trim().min(2).optional(),
-    category: Joi.string()
-      .valid(...categoryEnum)
-      .optional(),
-    price: Joi.number().positive().optional(),
+    departmentId: Joi.string().optional(),
+    price: Joi.number().min(0).optional(),
     parameters: Joi.array().items(parameterSchema).min(1).optional(),
+    specializationIds: Joi.array().items(Joi.string()).optional(),
+    status: Joi.string().valid("Active", "Inactive").optional(),
     isActive: Joi.boolean().optional(),
   }),
 };

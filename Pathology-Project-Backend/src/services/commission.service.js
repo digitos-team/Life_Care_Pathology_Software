@@ -118,11 +118,11 @@ export const getDoctorCommissionReportService = async (
         throw new ApiError(400, "Doctor ID is required");
     }
 
-    // Parse dates
+    // Parse dates and ensure full day coverage
     const start = startDate ? new Date(startDate) : new Date(0);
-    const end = endDate ? new Date(endDate) : new Date();
+    start.setHours(0, 0, 0, 0);
 
-    // Set end date to end of day
+    const end = endDate ? new Date(endDate) : new Date();
     end.setHours(23, 59, 59, 999);
 
     // Aggregate bills with commission data
@@ -157,7 +157,24 @@ export const getDoctorCommissionReportService = async (
                     $map: {
                         input: "$items",
                         as: "item",
-                        in: "$$item.name",
+                        in: {
+                            $concat: [
+                                "$$item.name",
+                                {
+                                    $cond: [
+                                        { $eq: ["$$item.commissionType", "specialized"] },
+                                        " (S)",
+                                        {
+                                            $cond: [
+                                                { $eq: ["$$item.commissionType", "generalized"] },
+                                                " (G)",
+                                                ""
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
                     },
                 },
                 totalAmount: 1,
@@ -240,6 +257,8 @@ export const getAllDoctorsCommissionSummaryService = async (
     endDate
 ) => {
     const start = startDate ? new Date(startDate) : new Date(0);
+    start.setHours(0, 0, 0, 0);
+
     const end = endDate ? new Date(endDate) : new Date();
     end.setHours(23, 59, 59, 999);
 
@@ -446,8 +465,44 @@ export const getDetailedDoctorCommission = async (doctorId, startDate, endDate) 
                         in: {
                             $cond: [
                                 { $eq: ["$$value", ""] },
-                                "$$this.name",
-                                { $concat: ["$$value", ", ", "$$this.name"] },
+                                {
+                                    $concat: [
+                                        "$$this.name",
+                                        {
+                                            $cond: [
+                                                { $eq: ["$$this.commissionType", "specialized"] },
+                                                " (S)",
+                                                {
+                                                    $cond: [
+                                                        { $eq: ["$$this.commissionType", "generalized"] },
+                                                        " (G)",
+                                                        ""
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    $concat: [
+                                        "$$value",
+                                        ", ",
+                                        "$$this.name",
+                                        {
+                                            $cond: [
+                                                { $eq: ["$$this.commissionType", "specialized"] },
+                                                " (S)",
+                                                {
+                                                    $cond: [
+                                                        { $eq: ["$$this.commissionType", "generalized"] },
+                                                        " (G)",
+                                                        ""
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
                             ],
                         },
                     },
