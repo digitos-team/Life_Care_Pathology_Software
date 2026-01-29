@@ -68,7 +68,7 @@ const ReportPreview = ({ reportData, error, labConfig }) => {
                                 Diagnostic Report
                             </div>
                             <div className="text-xs text-slate-500 space-y-1">
-                                <p><span className="font-bold">Report ID:</span> {reportData._id}</p>
+                                <p><span className="font-bold">Report ID:</span> {reportData.reportId || reportData._id}</p>
                                 <p><span className="font-bold">Date:</span> {new Date(reportData.orderDate).toLocaleDateString()}</p>
                             </div>
                         </div>
@@ -88,7 +88,7 @@ const ReportPreview = ({ reportData, error, labConfig }) => {
                             </div>
                             <div>
                                 <span className="font-bold text-slate-600">Report ID:</span>
-                                <span className="ml-2 text-slate-800 font-black">{reportData._id}</span>
+                                <span className="ml-2 text-slate-800 font-black">{reportData.reportId || reportData._id}</span>
                             </div>
                         </div>
                     </div>

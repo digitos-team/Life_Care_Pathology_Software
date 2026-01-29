@@ -45,6 +45,13 @@ const testOrderSchema = new mongoose.Schema(
       index: true,
     },
 
+    reportId: {
+      type: String,
+      required: true,
+      trim: true,
+      index: true,
+    },
+
     labId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "PathologyLab",

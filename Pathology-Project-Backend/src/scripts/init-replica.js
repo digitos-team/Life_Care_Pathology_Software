@@ -5,8 +5,10 @@ const initReplicaSet = async () => {
     try {
         console.log('📡 Connecting to MongoDB to initialize Replica Set...');
 
-        // Connect WITHOUT replicaSet option first to perform administrative tasks
-        await mongoose.connect(`mongodb://localhost:27017/${DB_Name}`);
+        // Connect WITH directConnection to perform administrative tasks on uninitialized replica set
+        await mongoose.connect(`mongodb://127.0.0.1:27017/${DB_Name}`, {
+            directConnection: true
+        });
 
         const admin = mongoose.connection.db.admin();
         const info = await admin.serverStatus();

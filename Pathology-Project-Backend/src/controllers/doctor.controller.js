@@ -10,14 +10,20 @@ import {
 } from "../services/doctor.services.js";
 import Doctor from "../models/doctor.model.js";
 import { ApiError } from "../utils/ApiError.js";
+
 // 1. Add Doctor
 export const addDoctorController = asyncHandler(async (req, res) => {
   const doctorData = req.body;
   const labId = req.user.labId;
-  const existingDoctor = await Doctor.findOne({ email: doctorData.email });
 
-  if (existingDoctor) {
-    throw new ApiError(400, "Doctor with this email already exists");
+  // Handle empty email to prevent unique constraint violations
+  if (doctorData.email && doctorData.email.trim() !== "") {
+    const existingDoctor = await Doctor.findOne({ email: doctorData.email });
+    if (existingDoctor) {
+      throw new ApiError(400, "Doctor with this email already exists");
+    }
+  } else {
+    delete doctorData.email; // Remove empty string email
   }
 
   const doctor = await createDoctorService(doctorData, labId);
@@ -93,15 +99,10 @@ export const deleteDoctorController = asyncHandler(async (req, res) => {
 
   res.json(new ApiResponse(200, {}, "Doctor deleted successfully"));
 });
+
 // 6. Get Doctor By ID
 export const getDoctorByIdController = asyncHandler(async (req, res) => {
   const { doctorId } = req.params;
-  // const labId = req.user.labId; // getDoctorWithSpecializationsService checks ID but ideally also labId. 
-  // However, the service I wrote just uses findById. 
-  // For security I should maybe verify lab matching, but standard findById is usually safe if middleware checks lab access or if ID is unique.
-  // The original service checked labId. My new one does not explicitly check labId in the query but finding by ID is specific.
-  // Assuming getDoctorWithSpecializationsService handles it or I trust ID ownership.
-
   const labId = req.user.labId;
   const doctor = await getDoctorByIdService(doctorId, labId);
 

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import ProtectedRoute from './guards/ProtectedRoute';
 
@@ -76,8 +76,16 @@ const PageWithLayout = ({ component: Component, ...props }) => {
     );
 };
 
+const PatientsPage = (props) => {
+    const { user } = useAuth();
+    if (user?.role === 'Admin') return <AdminPatientRegistry {...props} />;
+    return <PatientRegistry {...props} />;
+};
+
 const AppRoutes = () => {
     const { user, loading } = useAuth();
+
+    const location = useLocation();
 
     if (loading) {
         return (
@@ -86,16 +94,10 @@ const AppRoutes = () => {
             </div>
         );
     }
-
     return (
         <Routes>
-            <Route path="/login" element={
-                user ? (
-                    <Navigate to={user.role === 'Admin' ? '/dashboard' : '/receptionist-dashboard'} replace />
-                ) : (
-                    <Login />
-                )
-            } />
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
 
             {/* Admin Routes */}
             <Route path="/dashboard" element={
@@ -118,14 +120,14 @@ const AppRoutes = () => {
                     <PageWithLayout component={Doctors} />
                 </ProtectedRoute>
             } />
+            <Route path="/settings" element={
+                <ProtectedRoute allowedRoles={['Admin']}>
+                    <PageWithLayout component={Settings} />
+                </ProtectedRoute>
+            } />
             <Route path="/revenue" element={
                 <ProtectedRoute allowedRoles={['Admin']}>
                     <PageWithLayout component={RevenueList} />
-                </ProtectedRoute>
-            } />
-            <Route path="/admin-billing" element={
-                <ProtectedRoute allowedRoles={['Admin']}>
-                    <PageWithLayout component={AdminBilling} />
                 </ProtectedRoute>
             } />
             <Route path="/discounts" element={
@@ -133,9 +135,9 @@ const AppRoutes = () => {
                     <PageWithLayout component={Discounts} />
                 </ProtectedRoute>
             } />
-            <Route path="/settings" element={
+            <Route path="/admin-billing" element={
                 <ProtectedRoute allowedRoles={['Admin']}>
-                    <PageWithLayout component={Settings} />
+                    <PageWithLayout component={AdminBilling} />
                 </ProtectedRoute>
             } />
             <Route path="/specializations" element={
@@ -154,32 +156,15 @@ const AppRoutes = () => {
                 </ProtectedRoute>
             } />
 
-
             {/* Receptionist Routes */}
             <Route path="/receptionist-dashboard" element={
-                <ProtectedRoute allowedRoles={['Admin', 'Operator']}>
+                <ProtectedRoute allowedRoles={['Operator']}>
                     <PageWithLayout component={ReceptionistDashboard} />
                 </ProtectedRoute>
             } />
-            <Route path="/patients" element={
-                <ProtectedRoute allowedRoles={['Admin', 'Operator']}>
-                    <PageWithLayout component={user?.role === 'Admin' ? AdminPatientRegistry : PatientRegistry} />
-                </ProtectedRoute>
-            } />
-            <Route path="/patients/add" element={
-                <ProtectedRoute allowedRoles={['Admin', 'Operator']}>
-                    <PageWithLayout component={AddPatient} />
-                </ProtectedRoute>
-            } />
-            <Route path="/patient/:id" element={
-                <ProtectedRoute allowedRoles={['Admin', 'Operator']}>
-                    <PageWithLayout component={PatientProfile} />
-                </ProtectedRoute>
-            } />
-
-            <Route path="/billing" element={
+            <Route path="/pending-orders" element={
                 <ProtectedRoute allowedRoles={['Operator']}>
-                    <PageWithLayout component={Billing} />
+                    <PageWithLayout component={PendingOrders} />
                 </ProtectedRoute>
             } />
             <Route path="/reports" element={
@@ -187,9 +172,28 @@ const AppRoutes = () => {
                     <PageWithLayout component={Reports} />
                 </ProtectedRoute>
             } />
-            <Route path="/pending-orders" element={
+            <Route path="/billing" element={
                 <ProtectedRoute allowedRoles={['Operator']}>
-                    <PageWithLayout component={PendingOrders} />
+                    <PageWithLayout component={Billing} />
+                </ProtectedRoute>
+            } />
+
+            {/* Shared/Split Routes */}
+            <Route path="/patients" element={
+                <ProtectedRoute allowedRoles={['Admin', 'Operator']}>
+                    <PageWithLayout component={PatientsPage} />
+                </ProtectedRoute>
+            } />
+
+            {/* Other Routes */}
+            <Route path="/add-patient" element={
+                <ProtectedRoute allowedRoles={['Operator']}>
+                    <PageWithLayout component={AddPatient} />
+                </ProtectedRoute>
+            } />
+            <Route path="/patient/:id" element={
+                <ProtectedRoute allowedRoles={['Operator', 'Admin']}>
+                    <PageWithLayout component={PatientProfile} />
                 </ProtectedRoute>
             } />
             <Route path="/assign-tests" element={
@@ -198,11 +202,13 @@ const AppRoutes = () => {
                 </ProtectedRoute>
             } />
 
-            {/* Redirect Root */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
-
-            {/* 404 */}
-            <Route path="*" element={<NotFound />} />
+            <Route path="*" element={
+                <div className="p-4">
+                    <h1>404 - Not Found</h1>
+                    <p>Debug Mode</p>
+                    <p>Current Path: {location.pathname}</p>
+                </div>
+            } />
         </Routes>
     );
 };

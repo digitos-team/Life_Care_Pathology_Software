@@ -27,6 +27,44 @@ const selectReferenceRange = (referenceRanges, patientGender) => {
   return { min: referenceRanges[0].min, max: referenceRanges[0].max };
 };
 
+// Helper to generate Report ID (similar to Patient ID)
+const generateReportId = async () => {
+  // Use aggregation to compute numeric part and get max
+  const res = await TestOrder.aggregate([
+    { $match: { reportId: { $exists: true, $ne: "" } } },
+    {
+      $project: {
+        codeStr: "$reportId",
+        // Remove REP prefix if present, else keep original
+        numericPart: {
+          $toInt: {
+            $cond: [
+              {
+                $regexMatch: { input: "$reportId", regex: /^REP(\d+)$/ },
+              },
+              {
+                $replaceOne: {
+                  input: "$reportId",
+                  find: "REP",
+                  replacement: "",
+                },
+              },
+              "0",
+            ],
+          },
+        },
+      },
+    },
+    { $group: { _id: null, maxNum: { $max: "$numericPart" } } },
+  ]);
+
+  const maxNumber = res[0]?.maxNum || 99; // default baseline (so first ID is REP100)
+  const nextNumber = maxNumber + 1;
+  const formatted = String(nextNumber).padStart(3, "0");
+  return `REP${formatted}`;
+};
+
+
 // 1. Create Test Order
 export const createTestOrder = async ({
   patientId,
@@ -107,11 +145,15 @@ export const createTestOrder = async ({
 
   const finalBillAmount = Math.max(0, Math.round(totalAmount - discountAmount));
 
+  // Generate report ID
+  const reportId = await generateReportId();
+
   try {
     const [testOrder] = await TestOrder.create(
       [
         {
           patientId,
+          reportId, // Add generated report ID
           labId,
           doctor: doctorId,
           tests,
@@ -273,8 +315,12 @@ export const addHistoricalReport = async ({
   const patient = await Patient.findById(patientId);
   if (!patient) throw new ApiError(404, "Patient not found");
 
+  // Generate report ID for historical report
+  const reportId = await generateReportId();
+
   const report = await TestOrder.create({
     patientId,
+    reportId, // Add generated report ID
     labId,
     doctorName: doctorName || "External",
     orderDate: testDate || new Date(),
@@ -381,6 +427,7 @@ export const getPendingOrders = async (labId) => {
     labId,
     overallStatus: { $in: ["PENDING", "PARTIAL"] },
   })
+    .select("reportId patientId doctor tests orderDate overallStatus createdAt updatedAt billId")
     .populate("patientId", "fullName phone age gender")
     .populate("doctor", "name")
     .sort({ orderDate: -1 });
@@ -388,6 +435,7 @@ export const getPendingOrders = async (labId) => {
 
 export const getPatientTestHistory = async (patientId, labId) => {
   const orders = await TestOrder.find({ patientId, labId })
+    .select("reportId patientId doctor tests orderDate overallStatus isHistorical createdAt updatedAt isDownloaded isEmailed")
     .populate("patientId", "fullName phone age gender reportPdfPath")
     .populate("doctor", "name")
     .sort({ orderDate: -1 });
@@ -403,6 +451,7 @@ export const getPatientTestHistory = async (patientId, labId) => {
 // 5. Get Patient Orders
 export const getPatientOrders = async (patientId, labId) => {
   return await TestOrder.find({ patientId, labId })
+    .select("reportId patientId doctor tests orderDate overallStatus createdAt updatedAt")
     .populate("patientId", "fullName phone age gender")
     .populate("doctor", "name")
     .sort({ orderDate: -1 });
@@ -415,6 +464,7 @@ export const getPatientReports = async (patientId, labId) => {
     labId,
     overallStatus: "COMPLETED",
   })
+    .select("reportId patientId doctor tests orderDate overallStatus isHistorical createdAt updatedAt isDownloaded isEmailed")
     .populate("patientId", "fullName phone age gender reportPdfPath")
     .populate("doctor", "name")
     .sort({ updatedAt: -1 });

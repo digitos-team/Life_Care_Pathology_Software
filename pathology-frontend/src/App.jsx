@@ -38,6 +38,10 @@ function App() {
             <RoleBasedProvider>
               <BrowserRouter>
                 <AppRoutes />
+                {/* <div style={{ padding: 50, background: 'orange', color: 'white', fontSize: '24px' }}>
+                  <h1>Wrappers are OK</h1>
+                  <p>If you see this, the issue is in AppRoutes.</p>
+                </div> */}
               </BrowserRouter>
             </RoleBasedProvider>
           </AuthProvider>

@@ -152,6 +152,27 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
         }
     };
 
+    const validateResult = (value, range) => {
+        if (!value || value.trim() === '') return { status: 'normal' };
+
+        // Try parsing number
+        const numVal = parseFloat(value);
+        if (isNaN(numVal)) return { status: 'normal' }; // Non-numeric values are neutral
+
+        if (range && typeof range === 'object') {
+            const { min, max } = range;
+            // Check low
+            if (min !== undefined && min !== null && numVal < min) {
+                return { status: 'abnormal', type: 'low' };
+            }
+            // Check high
+            if (max !== undefined && max !== null && numVal > max) {
+                return { status: 'abnormal', type: 'high' };
+            }
+        }
+        return { status: 'normal' };
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden max-h-[90vh] flex flex-col">
@@ -186,32 +207,48 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
 
                             {test.parameters && test.parameters.length > 0 ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {test.parameters.map((param, paramIndex) => (
-                                        <div key={paramIndex} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                            <label className="text-xs font-bold text-slate-600 block mb-1">
-                                                {param.parameterName}
-                                            </label>
-                                            <div className="flex gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={results[param.parameterName] || ''}
-                                                    onChange={(e) => handleResultChange(param.parameterName, e.target.value)}
-                                                    placeholder="Value"
-                                                    className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
-                                                />
-                                                <div className="flex items-center justify-center px-2 bg-slate-200 rounded-lg text-xs font-bold text-slate-600 min-w-[3rem]">
-                                                    {param.unit || '-'}
+                                    {test.parameters.map((param, paramIndex) => {
+                                        const currentValue = results[param.parameterName] || '';
+                                        const validation = validateResult(currentValue, param.referenceRange);
+                                        const isAbnormal = validation.status === 'abnormal';
+
+                                        return (
+                                            <div key={paramIndex} className={`p-3 rounded-xl border transition-all ${isAbnormal ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-100'}`}>
+                                                <label className={`text-xs font-bold block mb-1 ${isAbnormal ? 'text-red-700' : 'text-slate-600'}`}>
+                                                    {param.parameterName}
+                                                </label>
+                                                <div className="flex gap-2 relative">
+                                                    <input
+                                                        type="text"
+                                                        value={currentValue}
+                                                        onChange={(e) => handleResultChange(param.parameterName, e.target.value)}
+                                                        placeholder="Value"
+                                                        className={`flex-1 px-3 py-2 border rounded-lg text-sm font-medium outline-none transition-all ${isAbnormal
+                                                            ? 'bg-white border-red-300 text-red-700 focus:ring-2 focus:ring-red-200 focus:border-red-400'
+                                                            : 'bg-white border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'
+                                                            }`}
+                                                    />
+                                                    <div className={`flex items-center justify-center px-2 rounded-lg text-xs font-bold min-w-[3rem] ${isAbnormal ? 'bg-red-100 text-red-600' : 'bg-slate-200 text-slate-600'}`}>
+                                                        {param.unit || '-'}
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-between items-center mt-1">
+                                                    <div className={`text-[10px] ${isAbnormal ? 'text-red-500' : 'text-slate-400'}`}>
+                                                        Range: {
+                                                            typeof param.referenceRange === 'object' && param.referenceRange !== null
+                                                                ? `${param.referenceRange.min || ''} - ${param.referenceRange.max || ''}`
+                                                                : param.referenceRange || 'N/A'
+                                                        }
+                                                    </div>
+                                                    {isAbnormal && (
+                                                        <span className="text-[10px] font-bold text-red-500 uppercase">
+                                                            {validation.type}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
-                                            <div className="mt-1 text-[10px] text-slate-400">
-                                                Range: {
-                                                    typeof param.referenceRange === 'object' && param.referenceRange !== null
-                                                        ? `${param.referenceRange.min || ''} - ${param.referenceRange.max || ''}`
-                                                        : param.referenceRange || 'N/A'
-                                                }
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <div className="p-3 bg-slate-50 rounded-xl text-sm text-slate-400 italic">

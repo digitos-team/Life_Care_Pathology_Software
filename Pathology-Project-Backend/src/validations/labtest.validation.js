@@ -30,10 +30,13 @@ export const updateTest = {
   body: Joi.object({
     testName: Joi.string().trim().min(2).optional(),
     departmentId: Joi.string().optional(),
-    price: Joi.number().min(0).optional(),
+    category: Joi.string()
+      .valid(...categoryEnum)
+      .optional(),
+    price: Joi.number().positive().optional(),
     parameters: Joi.array().items(parameterSchema).min(1).optional(),
     specializationIds: Joi.array().items(Joi.string()).optional(),
-    status: Joi.string().valid("Active", "Inactive").optional(),
+    status: Joi.string().optional(),
     isActive: Joi.boolean().optional(),
   }),
 };
