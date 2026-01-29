@@ -44,7 +44,9 @@ class TestService {
   }
 
   async getAllTests(labId) {
-    const tests = await Test.find({ labId, isActive: true }).lean();
+    const tests = await Test.find({ labId, isActive: true })
+      .populate("departmentId", "name")
+      .lean();
 
     // Fetch all specializations for these tests
     const testIds = tests.map(t => t._id);
@@ -72,7 +74,7 @@ class TestService {
       _id: testId,
       labId,
       isActive: true,
-    });
+    }).populate("departmentId", "name");
   }
 
   async updateTest(testId, data, labId) {

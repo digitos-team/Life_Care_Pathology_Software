@@ -11,6 +11,10 @@ const revenueSchema = new mongoose.Schema(
             type: Number,
             required: true,
         },
+        discountAmount: {
+            type: Number,
+            default: 0,
+        },
         commissionAmount: {
             type: Number,
             required: true,

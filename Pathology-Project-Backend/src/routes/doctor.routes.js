@@ -14,19 +14,6 @@ import {
 
 const router = express.Router();
 
-// // All routes are protected for Admin
-// router.use(authMiddleware, adminMiddleware);
-
-// router.post("/add", addDoctorController);
-// router.put("/update/:doctorId", updateDoctorController);
-// router.get("/all", getAllDoctorsController);
-// router.get("/:doctorId", getDoctorByIdController);
-// router.get("/reports/:doctorId", getDoctorCommissionReportController);
-// router.delete("/:doctorId", deleteDoctorController);
-
-// export default router;
-// All routes are protected for Admin
-// router.use(authMiddleware, adminMiddleware);
 
 router.post("/add", authMiddleware, adminMiddleware, addDoctorController);
 router.put("/update/:doctorId", authMiddleware, adminMiddleware, updateDoctorController);

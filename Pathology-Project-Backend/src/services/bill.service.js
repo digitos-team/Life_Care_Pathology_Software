@@ -83,11 +83,7 @@ export const generateBill = async ({
 
         billCommissionAmount += commData.commissionAmount;
 
-        // Determine bill-level type (simplistic: if any specialized, set specialized?)
-        // Or just leave it as 'mixed' if different?
-        // Let's stick to the dominant type or just last one for now, 
-        // or effectively 'generalized' unless all are specialized?
-        // Actually, let's just use the logic: if we have commission, track total.
+
         if (commData.commissionType === 'specialized') {
           billCommissionType = 'specialized';
         } else if (commData.commissionType === 'generalized' && billCommissionType !== 'specialized') {

@@ -3,14 +3,13 @@ import { ApiError } from "../utils/ApiError.js";
 import mongoose from "mongoose";
 
 // Record revenue after payment
-export const recordRevenue = async ({ billId, totalAmount, commissionAmount, labId }, session = null) => {
-    const netRevenue = totalAmount - commissionAmount;
-
+export const recordRevenue = async ({ billId, totalAmount, discountAmount = 0, commissionAmount, netRevenue, labId }, session = null) => {
     const revenueData = {
         billId,
-        totalAmount,
+        totalAmount, // GROSS amount (for display)
+        discountAmount,
         commissionAmount,
-        netRevenue,
+        netRevenue, // Pre-calculated net revenue
         labId: new mongoose.Types.ObjectId(labId),
     };
 
@@ -48,6 +47,7 @@ export const getRevenueWithPaginationService = async (labId, query) => {
             $group: {
                 _id: null,
                 totalRevenue: { $sum: "$totalAmount" },
+                totalDiscount: { $sum: "$discountAmount" },
                 totalCommission: { $sum: "$commissionAmount" },
                 netRevenue: { $sum: "$netRevenue" },
                 count: { $sum: 1 },
@@ -56,6 +56,7 @@ export const getRevenueWithPaginationService = async (labId, query) => {
         {
             $addFields: {
                 totalRevenue: { $round: ["$totalRevenue", 2] },
+                totalDiscount: { $round: ["$totalDiscount", 2] },
                 totalCommission: { $round: ["$totalCommission", 2] },
                 netRevenue: { $round: ["$netRevenue", 2] },
             },
@@ -64,6 +65,7 @@ export const getRevenueWithPaginationService = async (labId, query) => {
 
     const stats = statsAgg[0] || {
         totalRevenue: 0,
+        totalDiscount: 0,
         totalCommission: 0,
         netRevenue: 0,
         count: 0,
@@ -79,6 +81,7 @@ export const getRevenueWithPaginationService = async (labId, query) => {
         .limit(limit)
         .populate({
             path: "billId",
+            select: "billNumber totalAmount discountAmount status items paymentId createdAt",
             populate: [
                 { path: "patientId", select: "fullName phone age gender" },
                 { path: "testOrderId", populate: { path: "doctor", select: "name" } }
@@ -103,8 +106,10 @@ const normalizeMonths = (data) => {
     data.forEach(m => map[m._id] = m);
 
     return Array.from({ length: 12 }, (_, i) => ({
-        month: i + 1,
+        _id: i + 1,
         totalRevenue: map[i + 1]?.totalRevenue || 0,
+        totalDiscount: map[i + 1]?.totalDiscount || 0,
+        totalCommission: map[i + 1]?.totalCommission || 0,
         netRevenue: map[i + 1]?.netRevenue || 0,
         count: map[i + 1]?.count || 0,
     }));
@@ -120,8 +125,10 @@ const normalizeDays = (year, month, data) => {
     data.forEach(d => map[d._id] = d);
 
     return Array.from({ length: daysInMonth }, (_, i) => ({
-        day: i + 1,
+        _id: { day: i + 1, month: parseInt(month), year: parseInt(year) },
         totalRevenue: map[i + 1]?.totalRevenue || 0,
+        totalDiscount: map[i + 1]?.totalDiscount || 0,
+        totalCommission: map[i + 1]?.totalCommission || 0,
         netRevenue: map[i + 1]?.netRevenue || 0,
         count: map[i + 1]?.count || 0,
     }));
@@ -157,6 +164,7 @@ export const getRevenueAnalytics = async ({
                         $group: {
                             _id: null,
                             totalRevenue: { $sum: "$totalAmount" },
+                            totalDiscount: { $sum: "$discountAmount" },
                             totalCommission: { $sum: "$commissionAmount" },
                             netRevenue: { $sum: "$netRevenue" },
                             count: { $sum: 1 },
@@ -165,6 +173,7 @@ export const getRevenueAnalytics = async ({
                     {
                         $addFields: {
                             totalRevenue: { $round: ["$totalRevenue", 2] },
+                            totalDiscount: { $round: ["$totalDiscount", 2] },
                             totalCommission: { $round: ["$totalCommission", 2] },
                             netRevenue: { $round: ["$netRevenue", 2] },
                         },
@@ -176,6 +185,8 @@ export const getRevenueAnalytics = async ({
                         $group: {
                             _id: { $month: "$createdAt" },
                             totalRevenue: { $sum: "$totalAmount" },
+                            totalDiscount: { $sum: "$discountAmount" },
+                            totalCommission: { $sum: "$commissionAmount" },
                             netRevenue: { $sum: "$netRevenue" },
                             count: { $sum: 1 },
                         },
@@ -183,6 +194,8 @@ export const getRevenueAnalytics = async ({
                     {
                         $addFields: {
                             totalRevenue: { $round: ["$totalRevenue", 2] },
+                            totalDiscount: { $round: ["$totalDiscount", 2] },
+                            totalCommission: { $round: ["$totalCommission", 2] },
                             netRevenue: { $round: ["$netRevenue", 2] },
                         },
                     },
@@ -200,6 +213,8 @@ export const getRevenueAnalytics = async ({
                             $group: {
                                 _id: { $dayOfMonth: "$createdAt" },
                                 totalRevenue: { $sum: "$totalAmount" },
+                                totalDiscount: { $sum: "$discountAmount" },
+                                totalCommission: { $sum: "$commissionAmount" },
                                 netRevenue: { $sum: "$netRevenue" },
                                 count: { $sum: 1 },
                             },
@@ -207,6 +222,8 @@ export const getRevenueAnalytics = async ({
                         {
                             $addFields: {
                                 totalRevenue: { $round: ["$totalRevenue", 2] },
+                                totalDiscount: { $round: ["$totalDiscount", 2] },
+                                totalCommission: { $round: ["$totalCommission", 2] },
                                 netRevenue: { $round: ["$netRevenue", 2] },
                             },
                         },

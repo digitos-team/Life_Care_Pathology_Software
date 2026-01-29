@@ -61,18 +61,10 @@ const labTestSchema = new mongoose.Schema(
       trim: true,
     },
 
-    category: {
-      type: String,
+    departmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
       required: true,
-      enum: [
-        "Blood",
-        "Urine",
-        "Biochemistry",
-        "Hormone",
-        "Immunology",
-        "Microbiology",
-        "Other",
-      ],
     },
 
     parameters: {
