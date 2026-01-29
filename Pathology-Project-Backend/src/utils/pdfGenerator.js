@@ -987,12 +987,12 @@ export const generateTestReportPDF = (doc, order, lab) => {
     const watermarkSize = 300;
     const watermarkX = (pageWidth - watermarkSize) / 2;
     const watermarkY = (pageHeight - watermarkSize) / 2;
-    
+
     doc.save();
     doc.opacity(0.05);
-    doc.image(LOGO_PATH, watermarkX, watermarkY, { 
-      width: watermarkSize, 
-      height: watermarkSize 
+    doc.image(LOGO_PATH, watermarkX, watermarkY, {
+      width: watermarkSize,
+      height: watermarkSize
     });
     doc.restore();
   };
@@ -1016,14 +1016,14 @@ export const generateTestReportPDF = (doc, order, lab) => {
 
     // Right side header info - "Clinical Laboratory"
     const rightTextX = rightMargin - 200;
-    
+
     doc
       .fillColor(darkBlue)
       .font("Helvetica-Bold")
       .fontSize(11)
-      .text("Clinical Laboratory", rightTextX, 20, { 
-        width: 200, 
-        align: "left" 
+      .text("Clinical Laboratory", rightTextX, 20, {
+        width: 200,
+        align: "left"
       });
 
     // Bullet points for services
@@ -1034,14 +1034,14 @@ export const generateTestReportPDF = (doc, order, lab) => {
       .text("● ", rightTextX, 35, { continued: true })
       .fillColor(textDark)
       .text("Fully Automated Computerized Clinical Lab", { continued: false });
-    
+
     doc
       .fillColor(accentRed)
       .fontSize(8)
       .text("● ", rightTextX, 45, { continued: true })
       .fillColor(textDark)
       .text("Health Check up for company, ● ECG", { continued: false });
-    
+
     doc
       .fillColor(accentRed)
       .fontSize(8)
@@ -1233,7 +1233,7 @@ export const generateTestReportPDF = (doc, order, lab) => {
 
     // Bottom section
     const bottomBarY = pageHeight - 85;
-    
+
     // Registration number centered above the line
     doc
       .fillColor(primaryBlue)
@@ -1257,7 +1257,7 @@ export const generateTestReportPDF = (doc, order, lab) => {
     // Address line with inline formatting
     const addressY = bottomBarY + 6;
     let currentX = leftMargin;
-    
+
     // "Add :"
     doc
       .fillColor(textDark)
@@ -1265,106 +1265,106 @@ export const generateTestReportPDF = (doc, order, lab) => {
       .font("Helvetica-Bold")
       .text("Add : ", currentX, addressY);
     currentX += doc.widthOfString("Add : ");
-    
+
     // Address in red
     doc
       .fillColor(accentRed)
       .font("Helvetica")
       .text("Ganga Bhavan Bldg. Navin Posari Road, Mohopada  ", currentX, addressY);
     currentX += doc.widthOfString("Ganga Bhavan Bldg. Navin Posari Road, Mohopada  ");
-    
+
     // Phone with green icon
     doc
       .fillColor("#4caf50")
       .fontSize(8)
       .text("📞", currentX, addressY);
     currentX += doc.widthOfString("📞");
-    
+
     doc
       .fillColor(textDark)
       .fontSize(7.5)
       .text(": ", currentX, addressY);
     currentX += doc.widthOfString(": ");
-    
+
     doc
       .fillColor(accentRed)
       .text("8805085771  ", currentX, addressY);
     currentX += doc.widthOfString("8805085771  ");
-    
+
     // WhatsApp with green icon
     doc
       .fillColor("#4caf50")
       .fontSize(8)
       .text("💬", currentX, addressY);
     currentX += doc.widthOfString("💬");
-    
+
     doc
       .fillColor(textDark)
       .fontSize(7.5)
       .text(": ", currentX, addressY);
     currentX += doc.widthOfString(": ");
-    
+
     doc
       .fillColor(accentRed)
       .text("9702111223  ", currentX, addressY);
     currentX += doc.widthOfString("9702111223  ");
-    
+
     // Email with blue icon
     doc
       .fillColor(primaryBlue)
       .fontSize(8)
       .text("✉", currentX, addressY);
     currentX += doc.widthOfString("✉");
-    
+
     doc
       .fillColor(textDark)
       .fontSize(7.5)
       .text(": ", currentX, addressY);
     currentX += doc.widthOfString(": ");
-    
+
     doc
       .fillColor(primaryBlue)
       .text("lifecare.rasayani@gmail.com", currentX, addressY);
 
     // First disclaimer line
     const disclaimer1Y = addressY + 12;
-    
+
     doc
       .fillColor("#00bcd4")
       .fontSize(7)
       .font("Helvetica")
       .text("● ", leftMargin, disclaimer1Y);
-    
+
     doc
       .fillColor(textDark)
       .text("These are only Laboratory & Technical Test Results.", leftMargin + 8, disclaimer1Y);
-    
+
     // Right side of first line
     const midPoint = pageWidth / 2 + 20;
     doc
       .fillColor("#00bcd4")
       .text("● ", midPoint, disclaimer1Y);
-    
+
     doc
       .fillColor(textDark)
       .text("These are not Medical Diagnostic Result in any case and purpose.", midPoint + 8, disclaimer1Y);
 
     // Second disclaimer line
     const disclaimer2Y = disclaimer1Y + 10;
-    
+
     doc
       .fillColor("#00bcd4")
       .text("● ", leftMargin, disclaimer2Y);
-    
+
     doc
       .fillColor(textDark)
       .text("Unexpected result should be confirmed with fresh specimen.", leftMargin + 8, disclaimer2Y);
-    
+
     // Right side of second line
     doc
       .fillColor("#00bcd4")
       .text("● ", midPoint, disclaimer2Y);
-    
+
     doc
       .fillColor(textDark)
       .text("Laboratory Test result should be Interpreted In Correlation with clinical finding.", midPoint + 8, disclaimer2Y);
@@ -1622,8 +1622,18 @@ export const generateDoctorCommissionReportPDF = (
   doc.font("Helvetica").fontSize(9);
 
   data.forEach((item) => {
+    const patientName = item.patientName || "N/A";
+    const testList = item.testOrder || "N/A";
+
+    // Calculate necessary height for this row based on the longest column (usually tests)
+    const rowHeight = Math.max(
+      doc.heightOfString(patientName, { width: 110 }),
+      doc.heightOfString(testList, { width: 160 }),
+      20 // Minimum height
+    ) + 10;
+
     // Check page break
-    if (currentY > doc.page.height - 100) {
+    if (currentY + rowHeight > doc.page.height - 100) {
       doc.addPage();
       currentY = 50;
       // Re-draw header
@@ -1634,19 +1644,12 @@ export const generateDoctorCommissionReportPDF = (
       doc.text("Bill Amt", colX.bill, currentY, { width: 60, align: "right" });
       doc.text("Comm Amt", colX.comm, currentY, { width: 60, align: "right" });
       currentY += 20;
+      doc.font("Helvetica").fontSize(9);
     }
 
     doc.text(new Date(item.date).toLocaleDateString(), colX.date, currentY);
-    doc.text(
-      item.patientName ? item.patientName.substring(0, 18) : "N/A",
-      colX.patient,
-      currentY,
-    );
-    doc.text(
-      item.testOrder ? item.testOrder.substring(0, 25) : "N/A",
-      colX.tests,
-      currentY,
-    );
+    doc.text(patientName, colX.patient, currentY, { width: 110 });
+    doc.text(testList, colX.tests, currentY, { width: 160 });
     doc.text((item.totalBillAmount || 0).toFixed(2), colX.bill, currentY, {
       width: 60,
       align: "right",
@@ -1657,7 +1660,8 @@ export const generateDoctorCommissionReportPDF = (
     });
 
     totalCommission += item.commissionAmount || 0;
-    currentY += 20;
+    currentY += rowHeight;
+
     doc
       .lineWidth(0.1)
       .strokeColor("#eeeeee")

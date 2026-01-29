@@ -6,9 +6,29 @@ import { sendReportEmail } from "../services/email.service.js";
 import Patient from "../models/patient.model.js";
 import PDFDocument from "pdfkit";
 import { generateTestReportPDF } from "../utils/pdfGenerator.js";
+import { generatePDFFromTemplate } from "../utils/puppeteerGenerator.js";
 import PathologyLab from "../models/pathologyLab.model.js";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const LOGO_PATH = path.join(__dirname, "..", "assets", "logo.jpeg");
+
+/**
+ * Helper to convert image to base64 for HTML templates
+ */
+const getBase64Image = (filePath) => {
+  try {
+    const bitmap = fs.readFileSync(filePath);
+    const extension = path.extname(filePath).replace(".", "");
+    return `data:image/${extension};base64,${bitmap.toString("base64")}`;
+  } catch (err) {
+    console.error("Error reading logo for PDF:", err);
+    return null;
+  }
+};
 import TestOrder from "../models/testorder.model.js";
 
 /**
@@ -232,53 +252,44 @@ export const downloadTestReportPDFController = asyncHandler(
       throw new ApiError(404, "Lab details not found");
     }
 
-    const doc = new PDFDocument({ margin: 30, size: "A4" });
-
     const filename = `Report-${order.patientId.fullName.replace(
       /[^a-zA-Z0-9]/g,
       "_"
     )}-${Date.now()}.pdf`;
 
-    // Local directory
     const reportsDir = path.join(process.cwd(), "uploads", "reports");
     if (!fs.existsSync(reportsDir)) {
       fs.mkdirSync(reportsDir, { recursive: true });
     }
 
     const filePath = path.join(reportsDir, filename);
-
-    // Store RELATIVE path in DB
     const reportPdfPath = `/uploads/reports/${filename}`;
 
-    const fileStream = fs.createWriteStream(filePath);
+    // Get Logo as Base64 for the template
+    const logoBase64 = getBase64Image(LOGO_PATH);
 
-    // Pipe to local file
-    doc.pipe(fileStream);
+    // Generate PDF using Puppeteer
+    const pdfBuffer = await generatePDFFromTemplate("report", {
+      order,
+      lab,
+      logo: logoBase64
+    });
 
-    // Pipe to response
+    // Save to file
+    fs.writeFileSync(filePath, pdfBuffer);
+
+    // Update patient status
+    await Patient.findByIdAndUpdate(order.patientId._id, {
+      reportPdfPath: reportPdfPath,
+      reportStatus: "generated",
+    });
+
+    console.log("Report generated & saved:", reportPdfPath);
+
+    // Send to response
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-    doc.pipe(res);
-
-    generateTestReportPDF(doc, order, lab);
-    doc.end();
-
-    // Update patient AFTER file saved
-    fileStream.on("finish", async () => {
-      await Patient.findByIdAndUpdate(order.patientId._id, {
-        reportPdfPath: reportPdfPath,
-        reportStatus: "generated",
-      });
-
-      console.log("Report generated & saved:", reportPdfPath);
-    });
-
-    // Error handling (important)
-    fileStream.on("error", async () => {
-      await Patient.findByIdAndUpdate(order.patientId._id, {
-        reportStatus: "failed",
-      });
-    });
+    res.send(pdfBuffer);
   }
 );
 // Sends Report to patient Via Email

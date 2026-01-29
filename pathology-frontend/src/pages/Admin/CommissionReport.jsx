@@ -313,7 +313,7 @@ const CommissionReport = () => {
                                                         <td className="px-6 py-4 whitespace-nowrap font-black text-slate-700 uppercase tracking-tight">
                                                             {bill.patientName}
                                                         </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-slate-500 max-w-[200px] truncate" title={bill.testNames}>
+                                                        <td className="px-6 py-4 text-slate-500 font-medium" title={bill.testNames}>
                                                             {bill.testNames}
                                                         </td>
                                                         <td className="px-6 py-4 whitespace-nowrap text-center font-black text-slate-500">

@@ -400,6 +400,7 @@ export const getDetailedDoctorCommission = async (doctorId, startDate, endDate) 
     const docObjectId = new mongoose.Types.ObjectId(doctorId);
 
     const matchStage = {
+        referringDoctorId: docObjectId,
         commissionAmount: { $gt: 0 },
     };
 
@@ -410,33 +411,12 @@ export const getDetailedDoctorCommission = async (doctorId, startDate, endDate) 
         };
     }
 
-    const detailedCommissions = await Revenue.aggregate([
+    const detailedCommissions = await Bill.aggregate([
         { $match: matchStage },
         {
             $lookup: {
-                from: "bills",
-                localField: "billId",
-                foreignField: "_id",
-                as: "bill",
-            },
-        },
-        { $unwind: "$bill" },
-        {
-            $lookup: {
-                from: "testorders",
-                localField: "bill.testOrderId",
-                foreignField: "_id",
-                as: "testOrder",
-            },
-        },
-        { $unwind: "$testOrder" },
-        {
-            $match: { "testOrder.doctor": docObjectId },
-        },
-        {
-            $lookup: {
                 from: "patients",
-                localField: "bill.patientId",
+                localField: "patientId",
                 foreignField: "_id",
                 as: "patient",
             },
@@ -445,7 +425,7 @@ export const getDetailedDoctorCommission = async (doctorId, startDate, endDate) 
         {
             $lookup: {
                 from: "doctors",
-                localField: "testOrder.doctor",
+                localField: "referringDoctorId",
                 foreignField: "_id",
                 as: "doctorDetails",
             },
@@ -455,13 +435,13 @@ export const getDetailedDoctorCommission = async (doctorId, startDate, endDate) 
             $project: {
                 date: "$createdAt",
                 patientName: { $ifNull: ["$patient.fullName", "Unknown"] },
-                billNumber: "$bill.billNumber",
+                billNumber: "$billNumber",
                 totalBillAmount: "$totalAmount",
                 commissionAmount: "$commissionAmount",
                 doctorName: "$doctorDetails.name",
                 testOrder: {
                     $reduce: {
-                        input: "$bill.items",
+                        input: "$items",
                         initialValue: "",
                         in: {
                             $cond: [
