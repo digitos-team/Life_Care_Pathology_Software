@@ -9,6 +9,8 @@ import {
     RefreshCw,
     ChevronDown,
     ChevronUp,
+    ChevronLeft,
+    ChevronRight,
     BarChart3,
     PieChart,
     CreditCard,
@@ -40,6 +42,14 @@ const BillingPage = () => {
     const [expandedBillId, setExpandedBillId] = useState(null);
     const [billDetails, setBillDetails] = useState({}); // Cache for bill details
     const [detailsLoading, setDetailsLoading] = useState(false);
+    const [isInitialLoading, setIsInitialLoading] = useState(false);
+
+    // Pagination State
+    const [pagination, setPagination] = useState({
+        total: 0,
+        pages: 0,
+        currentPage: 1
+    });
 
     // Payment Modal State
     const [selectedBillForPayment, setSelectedBillForPayment] = useState(null);
@@ -53,14 +63,27 @@ const BillingPage = () => {
     const [reportLoading, setReportLoading] = useState(false);
 
     // Fetch Bills
-    const fetchBills = async () => {
-        setLoading(true);
+    const fetchBills = async (search = '', page = 1) => {
         try {
-            const data = await getLabBills();
-            setBills(Array.isArray(data) ? data : []);
+            if (!search && page === 1) setIsInitialLoading(true);
+            const data = await getLabBills(search, page, 12);
+
+            // Backend returns { bills, total, pages, currentPage }
+            if (data && data.bills) {
+                setBills(data.bills);
+                setPagination({
+                    total: data.total,
+                    pages: data.pages,
+                    currentPage: data.currentPage
+                });
+            } else {
+                setBills(data || []);
+                setPagination({ total: 0, pages: 0, currentPage: 1 });
+            }
         } catch (error) {
             showToast('Failed to fetch bills', 'error');
         } finally {
+            setIsInitialLoading(false);
             setLoading(false);
         }
     };
@@ -80,14 +103,23 @@ const BillingPage = () => {
 
     useEffect(() => {
         if (activeTab === 'bills') {
-            fetchBills();
+            const timer = setTimeout(() => {
+                fetchBills(searchTerm, 1);
+            }, searchTerm ? 500 : 0);
+            return () => clearTimeout(timer);
         } else {
             fetchReport();
         }
-    }, [activeTab]);
+    }, [activeTab, searchTerm]);
+
+    const handlePageChange = (newPage) => {
+        if (newPage < 1 || newPage > pagination.pages) return;
+        fetchBills(searchTerm, newPage);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     const handlePaymentSuccess = () => {
-        fetchBills();
+        fetchBills(searchTerm, pagination.currentPage);
         setSelectedBillForPayment(null);
     };
 
@@ -124,17 +156,14 @@ const BillingPage = () => {
             await deleteBill(deleteConfirmId);
             showToast("Bill and all associated records deleted successfully", "success");
             setDeleteConfirmId(null);
-            fetchBills();
+            fetchBills(searchTerm, pagination.currentPage);
         } catch (error) {
             showToast("Failed to delete bill", "error");
         }
     };
 
-    // Filtered Bills
-    const filteredBills = bills.filter(bill =>
-        bill.billNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bill.patientId?.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Remove client-side filtering since we have server-side search
+    const filteredBills = bills;
 
     // Toggle Expansion
     const toggleExpand = async (billId) => {
@@ -214,7 +243,7 @@ const BillingPage = () => {
 
                     {/* Bills List */}
                     <div className="grid gap-4">
-                        {loading ? (
+                        {isInitialLoading || loading ? (
                             <div className="text-center py-12">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
                                 <p className="mt-4 text-slate-500">Loading bills...</p>
@@ -430,6 +459,63 @@ const BillingPage = () => {
                             ))
                         )}
                     </div>
+
+                    {/* Pagination Controls */}
+                    {pagination.pages > 1 && (
+                        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t border-slate-100">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                Showing page {pagination.currentPage} of {pagination.pages} ({pagination.total} total bills)
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => handlePageChange(pagination.currentPage - 1)}
+                                    disabled={pagination.currentPage === 1}
+                                    className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                                >
+                                    <ChevronLeft size={20} />
+                                </button>
+
+                                <div className="flex items-center gap-1">
+                                    {[...Array(pagination.pages)].map((_, i) => {
+                                        const pageNum = i + 1;
+                                        // Simplified pagination logic showing only a few pages if many exist
+                                        if (
+                                            pageNum === 1 ||
+                                            pageNum === pagination.pages ||
+                                            (pageNum >= pagination.currentPage - 1 && pageNum <= pagination.currentPage + 1)
+                                        ) {
+                                            return (
+                                                <button
+                                                    key={pageNum}
+                                                    onClick={() => handlePageChange(pageNum)}
+                                                    className={`w-10 h-10 rounded-lg text-sm font-bold transition-all ${pagination.currentPage === pageNum
+                                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                                                            : 'bg-white border border-slate-200 text-slate-600 hover:border-indigo-200 hover:text-indigo-600'
+                                                        }`}
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            );
+                                        } else if (
+                                            pageNum === pagination.currentPage - 2 ||
+                                            pageNum === pagination.currentPage + 2
+                                        ) {
+                                            return <span key={pageNum} className="px-1 text-slate-400">...</span>;
+                                        }
+                                        return null;
+                                    })}
+                                </div>
+
+                                <button
+                                    onClick={() => handlePageChange(pagination.currentPage + 1)}
+                                    disabled={pagination.currentPage === pagination.pages}
+                                    className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                                >
+                                    <ChevronRight size={20} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             ) : (
                 <div className="space-y-6">

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+export const categoryEnum = ["PATHOLOGY", "RADIOLOGY"];
 
 const referenceRangeSchema = new mongoose.Schema(
   {
@@ -82,6 +83,11 @@ const labTestSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 0,
+    },
+    category: {
+      type: String,
+      enum: categoryEnum,
+      default: "PATHOLOGY",
     },
 
     isActive: {

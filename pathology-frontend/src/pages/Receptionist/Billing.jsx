@@ -35,9 +35,11 @@ import PaymentModal from './components/PaymentModal';
 import DeleteConfirmModal from '../../components/ui/DeleteConfirmModal';
 
 const BillingPage = () => {
+    console.log("🔵 BillingPage component rendered/mounted");
     const { user } = useAuth();
     const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState('bills'); // 'bills' or 'reports'
+    console.log("🔵 Initial activeTab state:", activeTab);
     const [bills, setBills] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -68,10 +70,13 @@ const BillingPage = () => {
     const fetchBills = async (search = '', page = 1) => {
         try {
             if (!search && page === 1) setIsInitialLoading(true);
+            console.log("[fetchBills] Calling API with:", { search, page });
             const data = await getLabBills(search, page, 12);
+            console.log("[fetchBills] Received data:", data);
 
             // Backend returns { bills, total, pages, currentPage }
             if (data && data.bills) {
+                console.log("[fetchBills] Setting bills:", data.bills.length);
                 setBills(data.bills);
                 setPagination({
                     total: data.total,
@@ -79,10 +84,12 @@ const BillingPage = () => {
                     currentPage: data.currentPage
                 });
             } else {
+                console.log("[fetchBills] No bills property, using fallback");
                 setBills(data || []);
                 setPagination({ total: 0, pages: 0, currentPage: 1 });
             }
         } catch (error) {
+            console.error("[fetchBills] Error:", error);
             showToast('Failed to fetch bills', 'error');
         } finally {
             setIsInitialLoading(false);
@@ -104,12 +111,19 @@ const BillingPage = () => {
     };
 
     useEffect(() => {
+        console.log("[useEffect] Triggered with activeTab:", activeTab, "searchTerm:", searchTerm);
         if (activeTab === 'bills') {
+            console.log("[useEffect] Bills tab is active, setting up timer");
             const timer = setTimeout(() => {
+                console.log("[useEffect] Timer fired, calling fetchBills");
                 fetchBills(searchTerm, 1);
             }, searchTerm ? 500 : 0);
-            return () => clearTimeout(timer);
+            return () => {
+                console.log("[useEffect] Cleanup: clearing timer");
+                clearTimeout(timer);
+            };
         } else {
+            console.log("[useEffect] Reports tab is active, calling fetchReport");
             fetchReport();
         }
     }, [activeTab, searchTerm]);

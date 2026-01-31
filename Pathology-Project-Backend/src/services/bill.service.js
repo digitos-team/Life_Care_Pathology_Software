@@ -166,9 +166,11 @@ export const getPatientBills = async (patientId, labId) => {
 
 // Get all bills for a lab (with pagination and search)
 export const getLabBills = async (labId, limit = 12, search = "", page = 1) => {
+  console.log("[getLabBills] Called with:", { labId, limit, search, page });
+
   let query = { labId };
 
-  if (search) {
+  if (search && search.trim()) {
     // 1. Find matching patients
     const patients = await Patient.find({
       $or: [
@@ -188,6 +190,9 @@ export const getLabBills = async (labId, limit = 12, search = "", page = 1) => {
 
   const skip = (page - 1) * limit;
 
+  console.log("[getLabBills] Query:", JSON.stringify(query));
+  console.log("[getLabBills] Skip:", skip, "Limit:", limit);
+
   const [bills, total] = await Promise.all([
     Bill.find(query)
       .populate("patientId", "fullName phone")
@@ -196,6 +201,8 @@ export const getLabBills = async (labId, limit = 12, search = "", page = 1) => {
       .limit(limit),
     Bill.countDocuments(query)
   ]);
+
+  console.log("[getLabBills] Found bills:", bills.length, "Total:", total);
 
   return {
     bills,

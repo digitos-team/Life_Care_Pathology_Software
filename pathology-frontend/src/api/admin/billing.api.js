@@ -1,9 +1,14 @@
 import axiosClient from '../axiosClient';
 
-// Get all bills for the lab
-export const getLabBills = async () => {
+// Get all bills for the lab (with pagination and search)
+export const getLabBills = async (search = '', page = 1, limit = 12) => {
     try {
-        const response = await axiosClient.get('/bills');
+        const queryParams = new URLSearchParams({
+            search,
+            page,
+            limit
+        });
+        const response = await axiosClient.get(`/bills?${queryParams.toString()}`);
         return response.data.data;
     } catch (error) {
         console.error('Error fetching lab bills:', error);

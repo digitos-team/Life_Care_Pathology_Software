@@ -1,4 +1,5 @@
 import Joi from "joi";
+import { categoryEnum } from "../models/labtest.model.js";
 
 // Parameters Schema
 const parameterSchema = Joi.object({
@@ -17,6 +18,9 @@ export const createTest = {
   body: Joi.object({
     testName: Joi.string().trim().min(2).required(),
     departmentId: Joi.string().required(),
+    category: Joi.string()
+      .valid(...categoryEnum)
+      .optional(),
     price: Joi.number().min(0).required(),
     parameters: Joi.array().items(parameterSchema).min(1).required(),
     specializationIds: Joi.array().items(Joi.string()).optional(),

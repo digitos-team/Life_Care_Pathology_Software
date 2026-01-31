@@ -21,17 +21,17 @@ router.get("/report", getBillingReportController);
 // Download Billing Report (PDF/CSV)
 router.get("/report/download", downloadBillingReportController);
 
-// Get bill by ID
-router.get("/:billId", getBillController);
-
-// Download Individual Bill PDF
-router.get("/:billId/download", downloadBillPDFController);
+// Get all lab bills (MUST come before /:billId to avoid route collision)
+router.get("/", getLabBillsController);
 
 // Get patient bills
 router.get("/patient/:patientId", getPatientBillsController);
 
-// Get all lab bills
-router.get("/", getLabBillsController);
+// Download Individual Bill PDF
+router.get("/:billId/download", downloadBillPDFController);
+
+// Get bill by ID
+router.get("/:billId", getBillController);
 
 // Delete bill
 router.delete("/:billId", deleteBillController);
