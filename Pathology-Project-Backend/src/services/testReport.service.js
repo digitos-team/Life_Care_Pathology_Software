@@ -616,7 +616,8 @@ export const getTestOrderById = async (orderId) => {
     .populate("labId")
     .populate({
       path: "tests.testId",
-      select: "category testName parameters",
+      select: "category testName parameters specialization",
+      populate: { path: "departmentId", select: "name" }
     });
 };
 // 11. Delete Test Order

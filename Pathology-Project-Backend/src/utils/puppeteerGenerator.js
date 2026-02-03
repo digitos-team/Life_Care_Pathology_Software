@@ -42,18 +42,38 @@ export const generatePDFFromTemplate = async (templateName, data, options = {}) 
         // Set content and wait for it to be loaded
         await page.setContent(html, { waitUntil: "networkidle0" });
 
-        // Generate PDF
-        const pdfBuffer = await page.pdf({
+        // Prepare PDF options
+        const pdfOptions = {
             format: options.format || "A4",
             printBackground: true,
-            margin: options.margin || {
+            ...options,
+        };
+
+        // If headerTemplate and footerTemplate are provided, use displayHeaderFooter
+        if (options.headerTemplate || options.footerTemplate) {
+            pdfOptions.displayHeaderFooter = true;
+            pdfOptions.headerTemplate = options.headerTemplate || '<div></div>';
+            pdfOptions.footerTemplate = options.footerTemplate || '<div></div>';
+
+            // Set margins when using displayHeaderFooter
+            pdfOptions.margin = {
+                top: options.marginTop || "110px",
+                right: "10mm",
+                bottom: options.marginBottom || "180px",
+                left: "10mm",
+            };
+        } else {
+            // Default margins when not using displayHeaderFooter
+            pdfOptions.margin = options.margin || {
                 top: "10mm",
                 right: "10mm",
                 bottom: "10mm",
                 left: "10mm",
-            },
-            ...options,
-        });
+            };
+        }
+
+        // Generate PDF
+        const pdfBuffer = await page.pdf(pdfOptions);
 
         return pdfBuffer;
     } catch (error) {

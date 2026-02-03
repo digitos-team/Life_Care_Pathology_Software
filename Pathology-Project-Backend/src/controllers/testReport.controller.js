@@ -7,6 +7,7 @@ import Patient from "../models/patient.model.js";
 import PDFDocument from "pdfkit";
 import { generateTestReportPDF } from "../utils/pdfGenerator.js";
 import { generatePDFFromTemplate } from "../utils/puppeteerGenerator.js";
+import { generateHeaderTemplate, generateFooterTemplate } from "../utils/pdfTemplateHelper.js";
 import PathologyLab from "../models/pathologyLab.model.js";
 import fs from "fs";
 import path from "path";
@@ -278,11 +279,25 @@ export const downloadTestReportPDFController = asyncHandler(
     // Get Logo as Base64 for the template
     const logoBase64 = getBase64Image(LOGO_PATH);
 
+    const ISO_MARK_PATH = path.join(process.cwd(), "public", "images", "iso_mark.jpg");
+    const FOOTER_STAMP_PATH = path.join(process.cwd(), "public", "images", "footer_stamp.jpg");
+    const HEADER_IMG_PATH = path.join(process.cwd(), "public", "images", "header_img.jpg");
+    const FOOTER_IMG_PATH = path.join(process.cwd(), "public", "images", "footer_img.jpg");
+
+    const isoMarkBase64 = getBase64Image(ISO_MARK_PATH);
+    const footerStampBase64 = getBase64Image(FOOTER_STAMP_PATH);
+    const headerImgBase64 = getBase64Image(HEADER_IMG_PATH);
+    const footerImgBase64 = getBase64Image(FOOTER_IMG_PATH);
+
     // Generate PDF using Puppeteer
     const pdfBuffer = await generatePDFFromTemplate("report", {
       order,
       lab,
-      logo: logoBase64
+      logo: logoBase64,
+      isoMark: isoMarkBase64,
+      footerStamp: footerStampBase64,
+      headerImg: headerImgBase64,
+      footerImg: footerImgBase64
     });
 
     // Save to file
