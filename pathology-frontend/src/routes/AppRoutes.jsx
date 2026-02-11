@@ -191,6 +191,11 @@ const AppRoutes = () => {
                     <PageWithLayout component={AddPatient} />
                 </ProtectedRoute>
             } />
+            <Route path="/patients/add" element={
+                <ProtectedRoute allowedRoles={['Operator']}>
+                    <PageWithLayout component={AddPatient} />
+                </ProtectedRoute>
+            } />
             <Route path="/patient/:id" element={
                 <ProtectedRoute allowedRoles={['Operator', 'Admin']}>
                     <PageWithLayout component={PatientProfile} />
