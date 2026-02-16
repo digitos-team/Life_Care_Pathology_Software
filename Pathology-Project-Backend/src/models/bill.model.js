@@ -18,12 +18,38 @@ const billSchema = new mongoose.Schema({
     },
     items: [
         {
+            itemType: {
+                type: String,
+                enum: ["INDIVIDUAL_TEST", "PACKAGE"],
+                required: true,
+                default: "INDIVIDUAL_TEST",
+            },
             name: String,
             price: Number,
+
+            // For individual tests
             testId: {
                 type: mongoose.Schema.Types.ObjectId,
                 ref: "LabTest",
             },
+
+            // For packages
+            packageId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "TestPackage",
+            },
+
+            // Tests within package (for reference and reporting)
+            includedTests: [
+                {
+                    testId: {
+                        type: mongoose.Schema.Types.ObjectId,
+                        ref: "LabTest",
+                    },
+                    testName: String,
+                },
+            ],
+
             commissionAmount: {
                 type: Number,
                 default: 0,

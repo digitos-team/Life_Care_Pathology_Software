@@ -68,7 +68,8 @@ const generateReportId = async () => {
 // 1. Create Test Order
 export const createTestOrder = async ({
   patientId,
-  testIds,
+  testIds = [],
+  packageIds = [],
   doctorId,
   labId,
   discountId
@@ -85,15 +86,24 @@ export const createTestOrder = async ({
     if (!doctor) throw new ApiError(404, "Doctor not found");
   }
 
-  // Fetch all LabTests in one go (Batching Optimization)
+  // Fetch individual tests
   const labTests = await LabTest.find({ _id: { $in: testIds } });
-  if (labTests.length !== testIds.length) {
+  if (testIds.length > 0 && labTests.length !== testIds.length) {
     throw new ApiError(404, "One or more tests not found");
   }
 
+  // Fetch packages
+  const TestPackage = (await import("../models/testpackage.model.js")).default;
+  const packages = await TestPackage.find({ _id: { $in: packageIds } }).populate('includedTests.testId');
+  if (packageIds.length > 0 && packages.length !== packageIds.length) {
+    throw new ApiError(404, "One or more packages not found");
+  }
+
   const tests = [];
+  const billItems = [];
   let totalAmount = 0;
 
+  // Add individual tests
   for (const labTest of labTests) {
     const initialResults = labTest.parameters.map((param) => ({
       parameterName: param.name,
@@ -110,7 +120,54 @@ export const createTestOrder = async ({
       results: initialResults,
     });
 
+    billItems.push({
+      name: labTest.testName,
+      price: labTest.price || 0,
+      testId: labTest._id,
+      itemType: "TEST"
+    });
+
     totalAmount += (labTest.price || 0);
+  }
+
+  // Expand packages into tests and add package bill items
+  for (const pkg of packages) {
+    // Add all tests from the package to the test order
+    for (const includedTest of pkg.includedTests) {
+      const labTest = includedTest.testId;
+      if (!labTest) continue;
+
+      // Check if this test is already added (avoid duplicates)
+      const alreadyAdded = tests.find(t => t.testId.toString() === labTest._id.toString());
+      if (alreadyAdded) continue;
+
+      const initialResults = labTest.parameters.map((param) => ({
+        parameterName: param.name,
+        value: "",
+        unit: param.unit,
+        referenceRange: selectReferenceRange(param.referenceRanges, patient.gender),
+      }));
+
+      tests.push({
+        testId: labTest._id,
+        testName: labTest.testName,
+        price: labTest.price || 0,
+        status: "PENDING",
+        results: initialResults,
+        fromPackage: pkg._id, // Track which package this test came from
+      });
+    }
+
+    // Add package as a single bill item
+    billItems.push({
+      name: pkg.packageName,
+      price: pkg.packagePrice || 0,
+      packageId: pkg._id,
+      itemType: "PACKAGE",
+      includedTestCount: pkg.includedTests.length
+    });
+
+    totalAmount += (pkg.packagePrice || 0);
   }
 
   // Handle Discount
@@ -171,11 +228,7 @@ export const createTestOrder = async ({
       {
         patientId,
         testOrderId: testOrder._id,
-        items: tests.map((t) => ({
-          name: t.testName,
-          price: t.price,
-          testId: t.testId
-        })),
+        items: billItems, // Use the billItems array with itemType
         totalAmount: finalBillAmount,
         discountId: discountId || null,
         discountAmount,

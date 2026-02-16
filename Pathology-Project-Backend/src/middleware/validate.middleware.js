@@ -20,6 +20,12 @@ export const validate = (schema) => (req, res, next) => {
         return next(new ApiError(400, errorMessage));
     }
 
-    Object.assign(req, value);
+    // Assign validated value back to the appropriate location
+    if (schema.body) {
+        req.body = value;
+    } else {
+        Object.assign(req, value);
+    }
+
     return next();
 };

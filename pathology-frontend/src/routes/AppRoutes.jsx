@@ -21,6 +21,7 @@ import AdminBilling from '../pages/Admin/Billing';
 import Specializations from '../pages/Admin/Specializations';
 import Departments from '../pages/Admin/Departments';
 import CommissionReport from '../pages/Admin/CommissionReport';
+import TestPackages from '../pages/Admin/TestPackages';
 
 // Receptionist Pages
 import PatientRegistry from '../pages/Receptionist/PatientRegistry';
@@ -153,6 +154,11 @@ const AppRoutes = () => {
             <Route path="/commission" element={
                 <ProtectedRoute allowedRoles={['Admin']}>
                     <PageWithLayout component={CommissionReport} />
+                </ProtectedRoute>
+            } />
+            <Route path="/test-packages" element={
+                <ProtectedRoute allowedRoles={['Admin']}>
+                    <PageWithLayout component={TestPackages} />
                 </ProtectedRoute>
             } />
 

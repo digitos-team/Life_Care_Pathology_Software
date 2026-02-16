@@ -21,7 +21,7 @@
 // ];
 import {
     LayoutDashboard, TrendingDown, Microscope, Stethoscope,
-    Database, CreditCard, ClipboardList, Settings2, DollarSign, Tag, Layers, Coins, Building2
+    Database, CreditCard, ClipboardList, Settings2, DollarSign, Tag, Layers, Coins, Building2, Package
 } from 'lucide-react';
 
 export const NAV_MENU = [
@@ -45,6 +45,7 @@ export const NAV_MENU = [
     { id: 'specializations', label: 'Specializations', icon: Layers, roles: ['Admin'], path: '/specializations' },
     { id: 'commission', label: 'Commission Analytics', icon: Coins, roles: ['Admin'], path: '/commission' },
     { id: 'tests', label: 'Tests', icon: Microscope, roles: ['Admin'], path: '/tests' },
+    { id: 'test-packages', label: 'Test Packages', icon: Package, roles: ['Admin'], path: '/test-packages' },
     { id: 'doctors', label: 'Doctors', icon: Stethoscope, roles: ['Admin'], path: '/doctors' },
     { id: 'settings', label: 'Settings', icon: Settings2, roles: ['Admin'], path: '/settings' },
 ];

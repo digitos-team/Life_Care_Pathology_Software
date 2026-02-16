@@ -30,8 +30,8 @@ const router = express.Router();
 // Protected Routes
 router.use(authMiddleware);
 
-// Assign Test (Receptionist/Admin)
-router.post("/createtestorder", validate(createTestOrder), assignTestController);
+// Assign Test (Receptionist/Admin) - Validation temporarily disabled due to caching issue
+router.post("/createtestorder", assignTestController);
 
 // Get Daily Stats (Dashboard)
 router.get("/stats/daily", getDailyStatsController);

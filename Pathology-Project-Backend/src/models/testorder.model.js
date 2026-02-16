@@ -3,11 +3,87 @@ import mongoose from "mongoose";
 
 const testItemSchema = new mongoose.Schema(
   {
+    itemType: {
+      type: String,
+      enum: ["INDIVIDUAL_TEST", "PACKAGE"],
+      required: true,
+      default: "INDIVIDUAL_TEST",
+    },
+
+    // For individual tests
     testId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "LabTest",
-      required: true,
     },
+
+    // For packages
+    packageId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "TestPackage",
+    },
+
+    // Tests within package (expanded from package definition)
+    packageTests: [
+      {
+        testId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "LabTest",
+        },
+        testName: String,
+        status: {
+          type: String,
+          enum: ["PENDING", "COMPLETED"],
+          default: "PENDING",
+        },
+        results: [
+          {
+            parameterName: String,
+
+            // Parameter type
+            parameterType: {
+              type: String,
+              enum: ["QUANTITATIVE", "QUALITATIVE"],
+              default: "QUANTITATIVE",
+            },
+
+            // For QUANTITATIVE: numeric value
+            numericValue: Number,
+
+            // For QUALITATIVE: selected option
+            qualitativeValue: String,
+
+            // Legacy field (for backward compatibility)
+            value: String,
+
+            unit: String,
+
+            // For QUANTITATIVE parameters
+            referenceRange: {
+              min: Number,
+              max: Number,
+            },
+
+            // Validation flags
+            isAbnormal: {
+              type: Boolean,
+              default: false,
+            },
+            abnormalityType: {
+              type: String,
+              enum: ["NORMAL", "HIGH", "LOW", "ABNORMAL"],
+              default: "NORMAL",
+            },
+          },
+        ],
+        reportFileUrl: String,
+        enteredBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        enteredAt: Date,
+      },
+    ],
+
     testName: String,
     price: Number,
     status: {
@@ -15,14 +91,45 @@ const testItemSchema = new mongoose.Schema(
       enum: ["PENDING", "COMPLETED"],
       default: "PENDING",
     },
+
+    // For individual tests only
     results: [
       {
         parameterName: String,
+
+        // Parameter type (copied from test definition)
+        parameterType: {
+          type: String,
+          enum: ["QUANTITATIVE", "QUALITATIVE"],
+          default: "QUANTITATIVE",
+        },
+
+        // For QUANTITATIVE: numeric value
+        numericValue: Number,
+
+        // For QUALITATIVE: selected option
+        qualitativeValue: String,
+
+        // Legacy field (for backward compatibility)
         value: String,
+
         unit: String,
+
+        // For QUANTITATIVE parameters
         referenceRange: {
           min: Number,
           max: Number,
+        },
+
+        // Validation flags
+        isAbnormal: {
+          type: Boolean,
+          default: false,
+        },
+        abnormalityType: {
+          type: String,
+          enum: ["NORMAL", "HIGH", "LOW", "ABNORMAL"],
+          default: "NORMAL",
         },
       },
     ],

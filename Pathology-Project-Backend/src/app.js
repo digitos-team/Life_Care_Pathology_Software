@@ -14,6 +14,7 @@ import commissionRoutes from "./routes/commission.routes.js";
 import discountRoutes from "./routes/discount.routes.js";
 import specializationRoutes from "./routes/specialization.routes.js";
 import departmentRoutes from "./routes/department.routes.js";
+import testPackageRoutes from "./routes/testpackage.routes.js";
 
 import { errorHandler } from "./middleware/errorHandler.middleware.js";
 import cookieParser from "cookie-parser";
@@ -35,7 +36,7 @@ app.use(
       "http://localhost:5173",
       "http://localhost:5174",
       "http://localhost:3000",
-      ],
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     credentials: true,
   })
@@ -60,6 +61,7 @@ app.use("/api/commission", commissionRoutes);
 app.use("/api/discounts", discountRoutes);
 app.use("/api/specializations", specializationRoutes);
 app.use("/api/departments", departmentRoutes);
+app.use("/api/test-packages", testPackageRoutes);
 // Health check
 app.get("/", (req, res) => {
   res.json({ message: "Pathology Lab API is running" });

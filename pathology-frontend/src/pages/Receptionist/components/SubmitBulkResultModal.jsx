@@ -59,9 +59,11 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
                                 const snapshotParam = test.parameters.find(p => p.parameterName === masterParam.name);
                                 return {
                                     parameterName: masterParam.name,
-                                    value: snapshotParam ? snapshotParam.value : '', // Value logic handled by 'results' state map anyway
+                                    value: snapshotParam ? snapshotParam.value : '',
                                     unit: masterParam.unit,
-                                    referenceRange: masterParam.referenceRanges?.[0] || masterParam.referenceRange
+                                    referenceRange: masterParam.referenceRanges?.[0] || masterParam.referenceRange,
+                                    parameterType: masterParam.parameterType || 'QUANTITATIVE',
+                                    qualitativeOptions: masterParam.qualitativeOptions || []
                                 };
                             });
                             return { ...test, parameters: mergedParams };
@@ -211,6 +213,7 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
                                         const currentValue = results[param.parameterName] || '';
                                         const validation = validateResult(currentValue, param.referenceRange);
                                         const isAbnormal = validation.status === 'abnormal';
+                                        const isQualitative = param.parameterType === 'QUALITATIVE';
 
                                         return (
                                             <div key={paramIndex} className={`p-3 rounded-xl border transition-all ${isAbnormal ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-100'}`}>
@@ -218,34 +221,56 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
                                                     {param.parameterName}
                                                 </label>
                                                 <div className="flex gap-2 relative">
-                                                    <input
-                                                        type="text"
-                                                        value={currentValue}
-                                                        onChange={(e) => handleResultChange(param.parameterName, e.target.value)}
-                                                        placeholder="Value"
-                                                        className={`flex-1 px-3 py-2 border rounded-lg text-sm font-medium outline-none transition-all ${isAbnormal
-                                                            ? 'bg-white border-red-300 text-red-700 focus:ring-2 focus:ring-red-200 focus:border-red-400'
-                                                            : 'bg-white border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'
-                                                            }`}
-                                                    />
-                                                    <div className={`flex items-center justify-center px-2 rounded-lg text-xs font-bold min-w-[3rem] ${isAbnormal ? 'bg-red-100 text-red-600' : 'bg-slate-200 text-slate-600'}`}>
-                                                        {param.unit || '-'}
-                                                    </div>
-                                                </div>
-                                                <div className="flex justify-between items-center mt-1">
-                                                    <div className={`text-[10px] ${isAbnormal ? 'text-red-500' : 'text-slate-400'}`}>
-                                                        Range: {
-                                                            typeof param.referenceRange === 'object' && param.referenceRange !== null
-                                                                ? `${param.referenceRange.min || ''} - ${param.referenceRange.max || ''}`
-                                                                : param.referenceRange || 'N/A'
-                                                        }
-                                                    </div>
-                                                    {isAbnormal && (
-                                                        <span className="text-[10px] font-bold text-red-500 uppercase">
-                                                            {validation.type}
-                                                        </span>
+                                                    {isQualitative ? (
+                                                        <select
+                                                            value={currentValue}
+                                                            onChange={(e) => handleResultChange(param.parameterName, e.target.value)}
+                                                            className={`flex-1 px-3 py-2 border rounded-lg text-sm font-medium outline-none transition-all ${isAbnormal
+                                                                    ? 'bg-white border-red-300 text-red-700 focus:ring-2 focus:ring-red-200 focus:border-red-400'
+                                                                    : 'bg-white border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'
+                                                                }`}
+                                                        >
+                                                            <option value="">Select...</option>
+                                                            {(param.qualitativeOptions || []).map((opt, optIdx) => (
+                                                                <option key={optIdx} value={opt.value}>
+                                                                    {opt.value} {opt.isNormal ? '✓' : '⚠️'}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    ) : (
+                                                        <input
+                                                            type="text"
+                                                            value={currentValue}
+                                                            onChange={(e) => handleResultChange(param.parameterName, e.target.value)}
+                                                            placeholder="Value"
+                                                            className={`flex-1 px-3 py-2 border rounded-lg text-sm font-medium outline-none transition-all ${isAbnormal
+                                                                ? 'bg-white border-red-300 text-red-700 focus:ring-2 focus:ring-red-200 focus:border-red-400'
+                                                                : 'bg-white border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'
+                                                                }`}
+                                                        />
+                                                    )}
+                                                    {!isQualitative && (
+                                                        <div className={`flex items-center justify-center px-2 rounded-lg text-xs font-bold min-w-[3rem] ${isAbnormal ? 'bg-red-100 text-red-600' : 'bg-slate-200 text-slate-600'}`}>
+                                                            {param.unit || '-'}
+                                                        </div>
                                                     )}
                                                 </div>
+                                                {!isQualitative && (
+                                                    <div className="flex justify-between items-center mt-1">
+                                                        <div className={`text-[10px] ${isAbnormal ? 'text-red-500' : 'text-slate-400'}`}>
+                                                            Range: {
+                                                                typeof param.referenceRange === 'object' && param.referenceRange !== null
+                                                                    ? `${param.referenceRange.min || ''} - ${param.referenceRange.max || ''}`
+                                                                    : param.referenceRange || 'N/A'
+                                                            }
+                                                        </div>
+                                                        {isAbnormal && (
+                                                            <span className="text-[10px] font-bold text-red-500 uppercase">
+                                                                {validation.type}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })}

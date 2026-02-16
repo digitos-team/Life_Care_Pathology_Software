@@ -101,6 +101,63 @@ export const calculateCommissionForBill = async (billData) => {
 };
 
 /**
+ * NEW: Calculate commission for a bill item (individual test or package)
+ * BUSINESS RULE:
+ * - Individual tests → specialized/generalized based on specialization match
+ * - Packages → ALWAYS generalized commission
+ * 
+ * @param {Object} itemData - { itemType, testId, packageId, referringDoctorId, price }
+ * @returns {Object} - { commissionType, commissionPercentage, commissionAmount }
+ */
+export const calculateCommissionForItem = async (itemData) => {
+    const { itemType, testId, packageId, referringDoctorId, price } = itemData;
+
+    // No commission if no referring doctor
+    if (!referringDoctorId) {
+        return {
+            commissionType: "none",
+            commissionPercentage: 0,
+            commissionAmount: 0,
+        };
+    }
+
+    // Get doctor details
+    const doctor = await Doctor.findById(referringDoctorId).lean();
+    if (!doctor) {
+        throw new ApiError(404, "Referring doctor not found");
+    }
+
+    // PACKAGE → Always generalized commission
+    if (itemType === "PACKAGE") {
+        const commissionPercentage = doctor.generalizedCommissionPercentage || 0;
+        const commissionAmount = (price * commissionPercentage) / 100;
+
+        return {
+            commissionType: "generalized",
+            commissionPercentage,
+            commissionAmount: parseFloat(commissionAmount.toFixed(2)),
+        };
+    }
+
+    // INDIVIDUAL TEST → Check specialization match
+    if (itemType === "INDIVIDUAL_TEST") {
+        // Use existing logic from calculateCommissionForBill
+        return await calculateCommissionForBill({
+            testId,
+            referringDoctorId,
+            totalAmount: price
+        });
+    }
+
+    // Fallback (should never reach here)
+    return {
+        commissionType: "none",
+        commissionPercentage: 0,
+        commissionAmount: 0,
+    };
+};
+
+/**
  * NEW: Generate commission report for a doctor
  * @param {String} doctorId
  * @param {String} labId

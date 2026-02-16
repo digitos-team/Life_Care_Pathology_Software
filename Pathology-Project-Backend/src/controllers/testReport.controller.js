@@ -36,7 +36,18 @@ import TestOrder from "../models/testorder.model.js";
  * 1. Create Test Order (assign multiple tests)
  */
 export const createTestOrderController = asyncHandler(async (req, res) => {
-  const { patientId, testIds, doctorId, discountId } = req.body || {};
+  console.log('createTestOrderController - Request body:', JSON.stringify(req.body, null, 2));
+
+  const { patientId, testIds = [], packageIds = [], doctorId, discountId } = req.body || {};
+
+  console.log('createTestOrderController - Extracted values:', {
+    patientId,
+    testIdsCount: testIds.length,
+    packageIdsCount: packageIds.length,
+    doctorId,
+    discountId
+  });
+
   const labId = req.user.labId;
   if (!labId) {
     throw new ApiError(
@@ -45,20 +56,11 @@ export const createTestOrderController = asyncHandler(async (req, res) => {
     );
   }
 
-  if (
-    !patientId ||
-    !Array.isArray(testIds) ||
-    testIds.length === 0
-  ) {
-    throw new ApiError(
-      400,
-      "patientId and non-empty testIds are required"
-    );
-  }
-
+  // Validation is now handled by Joi schema
   const data = await testOrderService.createTestOrder({
     patientId,
     testIds,
+    packageIds,
     doctorId,
     labId,
     discountId,

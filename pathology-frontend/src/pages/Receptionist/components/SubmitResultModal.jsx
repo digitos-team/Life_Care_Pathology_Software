@@ -20,7 +20,9 @@ const SubmitResultModal = ({ isOpen, onClose, orderId, testItem, patientId, onSu
                     parameterName: param.parameterName,
                     value: param.value || '',
                     unit: param.unit,
-                    referenceRange: param.referenceRange
+                    referenceRange: param.referenceRange,
+                    parameterType: param.parameterType || 'QUANTITATIVE',
+                    qualitativeOptions: param.qualitativeOptions || []
                 }));
 
                 setResults(initialParams);
@@ -33,24 +35,19 @@ const SubmitResultModal = ({ isOpen, onClose, orderId, testItem, patientId, onSu
 
                         if (latestTest && latestTest.parameters) {
                             // Merge logic: Map latest master params to existing values
-                            // This handles 3 cases:
-                            // A) Same param: Update Range & Unit from Master, keep Value
-                            // B) New param in Master: Add it
-                            // C) Old param removed from Master: Keep it (to avoid data loss) or Mark deprecated?
-                            //    Safe approach: Use Master list as source of truth for structure
-
                             const mergedResults = latestTest.parameters.map(masterParam => {
                                 const existing = initialParams.find(p => p.parameterName === masterParam.name);
                                 return {
                                     parameterName: masterParam.name,
                                     value: existing ? existing.value : '', // Preserve value or start empty
                                     unit: masterParam.unit,                // Use LATEST unit
-                                    referenceRange: masterParam.referenceRanges?.[0] || masterParam.referenceRange // Use LATEST range
+                                    referenceRange: masterParam.referenceRanges?.[0] || masterParam.referenceRange, // Use LATEST range
+                                    parameterType: masterParam.parameterType || 'QUANTITATIVE', // Use LATEST type
+                                    qualitativeOptions: masterParam.qualitativeOptions || [] // Use LATEST options
                                 };
                             });
 
                             setResults(mergedResults);
-                            // console.log("Refreshed definitions from LabTest Master");
                         }
                     } catch (err) {
                         console.warn("Could not fetch latest test definition, using snapshot.", err);
@@ -193,6 +190,7 @@ const SubmitResultModal = ({ isOpen, onClose, orderId, testItem, patientId, onSu
                                 {results.map((param, index) => {
                                     const validation = validateResult(param.value, param.referenceRange);
                                     const isAbnormal = validation.status === 'abnormal';
+                                    const isQualitative = param.parameterType === 'QUALITATIVE';
 
                                     return (
                                         <div key={index} className={`grid grid-cols-1 sm:grid-cols-12 gap-2 items-center p-3 rounded-xl border transition-all ${isAbnormal ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-100'}`}>
@@ -200,36 +198,60 @@ const SubmitResultModal = ({ isOpen, onClose, orderId, testItem, patientId, onSu
                                                 <label className={`text-sm font-bold block ${isAbnormal ? 'text-red-700' : 'text-slate-700'}`}>
                                                     {param.parameterName}
                                                 </label>
-                                                <span className={`text-xs ${isAbnormal ? 'text-red-500' : 'text-slate-500'}`}>
-                                                    Ref: {
-                                                        typeof param.referenceRange === 'object' && param.referenceRange !== null
-                                                            ? `${param.referenceRange.min || ''} - ${param.referenceRange.max || ''}`
-                                                            : param.referenceRange || 'N/A'
-                                                    }
-                                                </span>
+                                                {!isQualitative && (
+                                                    <span className={`text-xs ${isAbnormal ? 'text-red-500' : 'text-slate-500'}`}>
+                                                        Ref: {
+                                                            typeof param.referenceRange === 'object' && param.referenceRange !== null
+                                                                ? `${param.referenceRange.min || ''} - ${param.referenceRange.max || ''}`
+                                                                : param.referenceRange || 'N/A'
+                                                        }
+                                                    </span>
+                                                )}
                                             </div>
-                                            <div className="sm:col-span-6">
+                                            <div className={isQualitative ? "sm:col-span-8" : "sm:col-span-6"}>
                                                 <div className="relative">
-                                                    <input
-                                                        type="text"
-                                                        value={param.value}
-                                                        onChange={(e) => handleResultChange(index, e.target.value)}
-                                                        placeholder={`Enter value`}
-                                                        className={`w-full px-3 py-2 border rounded-lg text-sm font-medium outline-none transition-all ${isAbnormal
-                                                            ? 'bg-white border-red-300 text-red-700 focus:ring-2 focus:ring-red-200 focus:border-red-400'
-                                                            : 'bg-white border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'
-                                                            }`}
-                                                    />
-                                                    {isAbnormal && (
+                                                    {isQualitative ? (
+                                                        // Dropdown for qualitative parameters
+                                                        <select
+                                                            value={param.value}
+                                                            onChange={(e) => handleResultChange(index, e.target.value)}
+                                                            className={`w-full px-3 py-2 border rounded-lg text-sm font-medium outline-none transition-all ${isAbnormal
+                                                                ? 'bg-white border-red-300 text-red-700 focus:ring-2 focus:ring-red-200 focus:border-red-400'
+                                                                : 'bg-white border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'
+                                                                }`}
+                                                        >
+                                                            <option value="">Select...</option>
+                                                            {(param.qualitativeOptions || []).map((opt, optIdx) => (
+                                                                <option key={optIdx} value={opt.value}>
+                                                                    {opt.value} {opt.isNormal ? '✓' : '⚠️'}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    ) : (
+                                                        // Text input for quantitative parameters
+                                                        <input
+                                                            type="text"
+                                                            value={param.value}
+                                                            onChange={(e) => handleResultChange(index, e.target.value)}
+                                                            placeholder={`Enter value`}
+                                                            className={`w-full px-3 py-2 border rounded-lg text-sm font-medium outline-none transition-all ${isAbnormal
+                                                                ? 'bg-white border-red-300 text-red-700 focus:ring-2 focus:ring-red-200 focus:border-red-400'
+                                                                : 'bg-white border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'
+                                                                }`}
+                                                        />
+                                                    )}
+                                                    {isAbnormal && !isQualitative && (
                                                         <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs font-bold text-red-500 uppercase">
                                                             {validation.type}
                                                         </span>
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className={`sm:col-span-2 text-xs font-bold ${isAbnormal ? 'text-red-500' : 'text-slate-500'}`}>
-                                                {param.unit}
-                                            </div>
+                                            {!isQualitative && (
+                                                <div className={`sm:col-span-2 text-xs font-bold ${isAbnormal ? 'text-red-500' : 'text-slate-500'}`}>
+                                                    {param.unit}
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}
