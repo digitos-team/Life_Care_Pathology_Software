@@ -159,7 +159,10 @@ const ReportPreview = ({ reportData, error, labConfig }) => {
                                                     <td className="py-4 px-6 text-slate-500 italic">
                                                         {
                                                             typeof result.referenceRange === 'object' && result.referenceRange !== null
-                                                                ? `${result.referenceRange.min || ''} - ${result.referenceRange.max || ''}`
+                                                                ? (result.referenceRange.displayText ||
+                                                                    (result.referenceRange.min != null && result.referenceRange.max != null
+                                                                        ? `${result.referenceRange.min} - ${result.referenceRange.max}`
+                                                                        : 'N/A'))
                                                                 : result.referenceRange || 'N/A'
                                                         }
                                                     </td>

@@ -27,6 +27,51 @@ const selectReferenceRange = (referenceRanges, patientGender) => {
   return { min: referenceRanges[0].min, max: referenceRanges[0].max };
 };
 
+/**
+ * Build a complete referenceRange object (with displayText) for any resultType.
+ * This is stored on each parameter in the test order so the PDF template can display it.
+ */
+const buildResultReferenceRange = (param, patientGender) => {
+  const rt = param.resultType || 'NUMERIC';
+
+  if (rt === 'NUMERIC') {
+    const ranges = param.referenceRanges || [];
+    const selected = selectReferenceRange(ranges, patientGender);
+    const displayText = ranges
+      .map(r => `${r.gender}: ${r.min} - ${r.max}`)
+      .join(' | ');
+    return {
+      ...(selected || {}),
+      displayText: displayText || (selected ? `${selected.min} - ${selected.max}` : '-'),
+    };
+  }
+
+  if (rt === 'UNISEX_NUMERIC') {
+    const r = param.unisexRange || {};
+    return {
+      min: r.min,
+      max: r.max,
+      displayText: (r.min != null && r.max != null) ? `${r.min} - ${r.max}` : '-',
+    };
+  }
+
+  if (rt === 'COMPARISON') {
+    const ranges = param.comparisonRanges || (param.comparisonRange ? [param.comparisonRange] : []);
+    const displayText = ranges
+      .map(cr => `${cr.gender ? cr.gender + ': ' : ''}${cr.comparator || '<'} ${cr.value}`)
+      .join(' | ');
+    return { displayText: displayText || '-' };
+  }
+
+  if (rt === 'QUALITATIVE') {
+    const q = param.qualitativeOptions || {};
+    return { displayText: q.normalValue ? `Normal: ${q.normalValue}` : '-' };
+  }
+
+  // Fallback for unknown types
+  return { displayText: '-' };
+};
+
 // Helper to generate Report ID (similar to Patient ID)
 const generateReportId = async () => {
   // Use aggregation to compute numeric part and get max
@@ -109,7 +154,8 @@ export const createTestOrder = async ({
       parameterName: param.name,
       value: "",
       unit: param.unit,
-      referenceRange: selectReferenceRange(param.referenceRanges, patient.gender),
+      resultType: param.resultType || 'NUMERIC',
+      referenceRange: buildResultReferenceRange(param, patient.gender),
     }));
 
     tests.push({
@@ -124,7 +170,7 @@ export const createTestOrder = async ({
       name: labTest.testName,
       price: labTest.price || 0,
       testId: labTest._id,
-      itemType: "TEST"
+      itemType: "INDIVIDUAL_TEST"
     });
 
     totalAmount += (labTest.price || 0);
@@ -210,27 +256,26 @@ export const createTestOrder = async ({
       [
         {
           patientId,
-          reportId, // Add generated report ID
+          reportId,
           labId,
-          doctor: doctorId,
+          doctor: doctorId || undefined,
           tests,
           totalAmount: finalBillAmount,
-          discountId: discountId || null,
+          discountId: discountId || undefined,
           discountAmount,
           overallStatus: "PENDING",
         },
       ]
     );
 
-
     const billService = await import("./bill.service.js");
     const bill = await billService.generateBill(
       {
         patientId,
         testOrderId: testOrder._id,
-        items: billItems, // Use the billItems array with itemType
+        items: billItems,
         totalAmount: finalBillAmount,
-        discountId: discountId || null,
+        discountId: discountId || undefined,
         discountAmount,
         labId,
         referringDoctorId: doctorId
@@ -279,7 +324,8 @@ export const updateTestOrder = async (orderId, { addTestIds = [], removeTestItem
           parameterName: p.name,
           value: "",
           unit: p.unit,
-          referenceRange: selectReferenceRange(p.referenceRanges, patient?.gender)
+          resultType: p.resultType || 'NUMERIC',
+          referenceRange: buildResultReferenceRange(p, patient?.gender)
         }));
 
         order.tests.push({
@@ -417,7 +463,21 @@ export const submitTestResults = async (
 
   if (!testItem) throw new ApiError(404, "Test not found in this order");
 
-  // Note: SAFETY LOCK removed to allow editing after unlocking reports via "Revise" feature
+  // Fetch master LabTest definition to refresh referenceRange with displayText
+  let masterDef = null;
+  try {
+    masterDef = await LabTest.findById(testItem.testId);
+  } catch (e) {
+    // Non-critical: proceed without refreshing
+  }
+
+  // Fetch patient for gender-specific range selection
+  let patient = null;
+  if (masterDef) {
+    try {
+      patient = await Patient.findById(order.patientId);
+    } catch (e) { /* ignore */ }
+  }
 
   if (results && Array.isArray(results)) {
     results.forEach((inputResult) => {
@@ -426,17 +486,29 @@ export const submitTestResults = async (
         const param = testItem.results[paramIndex];
         const val = inputResult.value;
 
-        // VALDIATION: Numeric and Range check
-        const range = param.referenceRange;
-        if (range && (range.min !== undefined || range.max !== undefined)) {
-          const numValue = parseFloat(val);
-          if (isNaN(numValue)) {
-            throw new ApiError(400, `Result for ${param.parameterName} must be a number`);
+        // Refresh referenceRange from master definition if available
+        if (masterDef) {
+          const masterParam = masterDef.parameters.find(
+            p => p.name.trim().toLowerCase() === param.parameterName.trim().toLowerCase()
+          );
+          if (masterParam) {
+            param.resultType = masterParam.resultType || 'NUMERIC';
+            param.referenceRange = buildResultReferenceRange(masterParam, patient?.gender);
           }
-          // Prevent extreme outliers (e.g., 999 when range is 12-18)
-          // Simple rule: block if value is 10x outside the range or just unrealistic
-          if (range.max && numValue > range.max * 10) {
-            throw new ApiError(400, `Value ${val} seems realistically high for ${param.parameterName}`);
+        }
+
+        // VALIDATION: Numeric range check (skip for QUALITATIVE)
+        const rt = param.resultType || 'NUMERIC';
+        if (rt !== 'QUALITATIVE') {
+          const range = param.referenceRange;
+          if (range && (range.min !== undefined || range.max !== undefined)) {
+            const numValue = parseFloat(val);
+            if (isNaN(numValue)) {
+              throw new ApiError(400, `Result for ${param.parameterName} must be a number`);
+            }
+            if (range.max && numValue > range.max * 10) {
+              throw new ApiError(400, `Value ${val} seems realistically high for ${param.parameterName}`);
+            }
           }
         }
 
@@ -470,6 +542,7 @@ export const submitTestResults = async (
 
   return order;
 };
+
 
 // 4. Get Pending Test Orders
 export const getPendingOrders = async (labId) => {
@@ -570,12 +643,25 @@ export const submitBulkResultsByBill = async (
   const order = await TestOrder.findById(bill.testOrderId);
   if (!order) throw new ApiError(404, "Test Order not found for this bill");
 
+  // Fetch master LabTest definitions to refresh referenceRange with displayText
+  const testIds = [...new Set(order.tests.map(t => t.testId.toString()))];
+  const labTests = await LabTest.find({ _id: { $in: testIds } });
+  const labTestMap = {};
+  labTests.forEach(lt => { labTestMap[lt._id.toString()] = lt; });
+
+  // Fetch patient for gender-specific range selection
+  let patient = null;
+  try {
+    patient = await Patient.findById(order.patientId);
+  } catch (e) { /* ignore */ }
+
   let anyUpdated = false;
 
   order.tests.forEach((testItem) => {
     // Audit check: If already completed, skip unless we wanted to edit
-    // (For bulk, we usually skip already completed tests to avoid accidental overwrites)
     if (testItem.status === "COMPLETED") return;
+
+    const masterDef = labTestMap[testItem.testId.toString()];
 
     let testModified = false;
     results?.forEach((inputResult) => {
@@ -584,11 +670,22 @@ export const submitBulkResultsByBill = async (
         const param = testItem.results[paramIndex];
         const val = inputResult.value;
 
-        // Basic numeric validation if range exists
-        if (param.referenceRange && val && val.trim() !== "") {
+        // Refresh referenceRange from master definition if available
+        if (masterDef) {
+          const masterParam = masterDef.parameters.find(
+            p => p.name.trim().toLowerCase() === param.parameterName.trim().toLowerCase()
+          );
+          if (masterParam) {
+            param.resultType = masterParam.resultType || 'NUMERIC';
+            param.referenceRange = buildResultReferenceRange(masterParam, patient?.gender);
+          }
+        }
+
+        // Basic numeric validation if range exists and result type is numeric
+        const rt = param.resultType || 'NUMERIC';
+        if (rt !== 'QUALITATIVE' && param.referenceRange && val && val.trim() !== "") {
           const numValue = parseFloat(val);
-          if (isNaN(numValue)) throw new ApiError(400, `Invalid numeric value for ${param.parameterName}`);
-          if (param.referenceRange.max && numValue > param.referenceRange.max * 10) {
+          if (param.referenceRange.max && !isNaN(numValue) && numValue > param.referenceRange.max * 10) {
             throw new ApiError(400, `Value too high for ${param.parameterName}`);
           }
         }
@@ -607,6 +704,7 @@ export const submitBulkResultsByBill = async (
       const allFilled = testItem.results.every((r) => r.value && r.value.trim() !== "");
       if (allFilled) {
         testItem.status = "COMPLETED";
+
         testItem.enteredBy = userId;
         testItem.enteredAt = new Date();
       }

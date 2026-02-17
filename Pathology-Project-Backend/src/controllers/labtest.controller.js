@@ -20,13 +20,25 @@ export const createTest = asyncHandler(async (req, res) => {
     );
 });
 
-// 2. Get all active tests
+// 2. Get all active tests (with optional filters)
 export const getAllTests = asyncHandler(async (req, res) => {
     const labId = req.user.labId;
-    const tests = await testService.getAllTests(labId);
+    const { departmentId, search } = req.query;
+
+    const tests = await testService.getAllTests(labId, { departmentId, search });
 
     res.status(200).json(
         new ApiResponse(200, tests, "Tests fetched successfully")
+    );
+});
+
+// 2b. Get tests grouped by department
+export const getTestsGroupedByDepartment = asyncHandler(async (req, res) => {
+    const labId = req.user.labId;
+    const grouped = await testService.getTestsGroupedByDepartment(labId);
+
+    res.status(200).json(
+        new ApiResponse(200, grouped, "Tests grouped by department fetched successfully")
     );
 });
 

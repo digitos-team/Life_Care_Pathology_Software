@@ -1,6 +1,8 @@
 // src/services/test/test.service.js
+import mongoose from "mongoose";
 import Test from "../models/labtest.model.js";
 import TestSpecialization from "../models/testSpecialization.model.js";
+import Department from "../models/department.model.js";
 import { ApiError } from "../utils/ApiError.js";
 
 class TestService {
@@ -43,9 +45,23 @@ class TestService {
     return test;
   }
 
-  async getAllTests(labId) {
-    const tests = await Test.find({ labId, isActive: true })
+  async getAllTests(labId, filters = {}) {
+    const { departmentId, search } = filters;
+
+    // Build the query
+    const query = { labId, isActive: true };
+
+    if (departmentId) {
+      query.departmentId = departmentId;
+    }
+
+    if (search) {
+      query.testName = { $regex: search, $options: "i" };
+    }
+
+    const tests = await Test.find(query)
       .populate("departmentId", "name")
+      .sort({ testName: 1 })
       .lean();
 
     // Fetch all specializations for these tests
@@ -67,6 +83,66 @@ class TestService {
       ...t,
       specializations: specsByTest[t._id.toString()] || []
     }));
+  }
+
+  /**
+   * Get all tests grouped by department using MongoDB aggregation.
+   * Returns: [{ department: { _id, name }, testCount: N, tests: [...] }]
+   */
+  async getTestsGroupedByDepartment(labId) {
+    const labObjectId = new mongoose.Types.ObjectId(labId);
+
+    const grouped = await Test.aggregate([
+      // Match active tests for this lab
+      { $match: { labId: labObjectId, isActive: true } },
+      // Sort tests by name
+      { $sort: { testName: 1 } },
+      // Lookup the department details
+      {
+        $lookup: {
+          from: "departments",
+          localField: "departmentId",
+          foreignField: "_id",
+          as: "department",
+        },
+      },
+      // Unwind department (each test has exactly one department)
+      { $unwind: { path: "$department", preserveNullAndEmptyArrays: true } },
+      // Group by department
+      {
+        $group: {
+          _id: "$departmentId",
+          department: { $first: "$department" },
+          testCount: { $sum: 1 },
+          tests: {
+            $push: {
+              _id: "$_id",
+              testName: "$testName",
+              price: "$price",
+              category: "$category",
+              parameters: "$parameters",
+              isActive: "$isActive",
+            },
+          },
+        },
+      },
+      // Sort departments alphabetically
+      { $sort: { "department.name": 1 } },
+      // Clean up the output
+      {
+        $project: {
+          _id: 0,
+          department: {
+            _id: "$department._id",
+            name: "$department.name",
+          },
+          testCount: 1,
+          tests: 1,
+        },
+      },
+    ]);
+
+    return grouped;
   }
 
   async getTestById(testId, labId) {

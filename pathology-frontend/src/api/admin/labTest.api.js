@@ -44,3 +44,14 @@ export const deleteLabTest = async (testId) => {
   }
 };
 
+// Get tests grouped by department
+export const getTestsGroupedByDepartment = async () => {
+  try {
+    const response = await axiosClient.get('/labtest/grouped-by-department');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching tests by department:', error);
+    throw error;
+  }
+};
+

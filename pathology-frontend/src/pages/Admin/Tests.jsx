@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Card from '../../components/ui/Card';
-import { Microscope, Plus, Edit3, Trash2, X, AlertTriangle, Building2, Layers } from 'lucide-react';
+import { Microscope, Plus, Edit3, Trash2, X, AlertTriangle, Building2, Layers, Search, Filter } from 'lucide-react';
 import { getLabTests, createLabTest, updateLabTest, deleteLabTest } from '../../api/admin/labTest.api';
 import { getAllSpecializations } from '../../api/admin/specialization.api';
 import { getDepartments } from '../../api/admin/department.api';
@@ -38,6 +38,10 @@ const LabTestManagement = () => {
     // List state
     const [tests, setTests] = useState([]);
     const [listLoading, setListLoading] = useState(true);
+
+    // Filter state
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedDeptFilter, setSelectedDeptFilter] = useState('');
 
     // Fetch on mount
     useEffect(() => {
@@ -80,6 +84,44 @@ const LabTestManagement = () => {
         }
     };
 
+    // Client-side filtered tests
+    const filteredTests = useMemo(() => {
+        let result = tests;
+
+        // Filter by department
+        if (selectedDeptFilter) {
+            result = result.filter(t => {
+                const deptId = t.departmentId?._id || t.departmentId;
+                return deptId === selectedDeptFilter;
+            });
+        }
+
+        // Filter by search term
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase();
+            result = result.filter(t =>
+                t.testName?.toLowerCase().includes(term) ||
+                t.departmentId?.name?.toLowerCase().includes(term)
+            );
+        }
+
+        return result;
+    }, [tests, selectedDeptFilter, searchTerm]);
+
+    // Department test counts for the filter dropdown
+    const deptTestCounts = useMemo(() => {
+        const counts = {};
+        tests.forEach(t => {
+            const deptId = t.departmentId?._id || t.departmentId;
+            const deptName = t.departmentId?.name || 'Unknown';
+            if (deptId) {
+                if (!counts[deptId]) counts[deptId] = { name: deptName, count: 0 };
+                counts[deptId].count++;
+            }
+        });
+        return counts;
+    }, [tests]);
+
     // Form validation
     const validateForm = () => {
         const errors = {};
@@ -101,13 +143,11 @@ const LabTestManagement = () => {
 
                 if (!param.name.trim()) paramError.name = 'Parameter name is required';
 
-                const paramType = param.parameterType || 'QUANTITATIVE';
+                const rt = param.resultType || 'NUMERIC';
 
-                if (paramType === 'QUANTITATIVE') {
-                    // Quantitative validation
-                    if (!param.unit?.trim()) paramError.unit = 'Unit is required for quantitative parameters';
-
-                    // Reference ranges validation
+                // Type-specific validation
+                if (rt === 'NUMERIC') {
+                    if (!param.unit?.trim()) paramError.unit = 'Unit is required';
                     if (!Array.isArray(param.referenceRanges) || param.referenceRanges.length === 0) {
                         paramError.referenceRanges = 'At least one reference range is required';
                     } else {
@@ -122,10 +162,31 @@ const LabTestManagement = () => {
                             }
                         });
                     }
-                } else if (paramType === 'QUALITATIVE') {
-                    // Qualitative validation
-                    if (!Array.isArray(param.qualitativeOptions) || param.qualitativeOptions.length === 0) {
-                        paramError.qualitativeOptions = 'At least one option is required for qualitative parameters';
+                } else if (rt === 'UNISEX_NUMERIC') {
+                    if (!param.unit?.trim()) paramError.unit = 'Unit is required';
+                    if (param.unisexRange?.min === '' || param.unisexRange?.min == null ||
+                        param.unisexRange?.max === '' || param.unisexRange?.max == null) {
+                        paramError.unisexRange = 'Min and max values are required';
+                    } else if (Number(param.unisexRange.min) >= Number(param.unisexRange.max)) {
+                        paramError.unisexRange = 'Min must be less than max';
+                    }
+                } else if (rt === 'COMPARISON') {
+                    if (!param.unit?.trim()) paramError.unit = 'Unit is required';
+                    const ranges = param.comparisonRanges || [];
+                    if (ranges.length === 0) {
+                        paramError.comparisonRanges = 'At least one comparison range is required';
+                    } else {
+                        ranges.forEach((cr, crIdx) => {
+                            if (!cr.comparator) paramError[`cr_${crIdx}_comparator`] = 'Comparator is required';
+                            if (cr.value === '' || cr.value == null) paramError[`cr_${crIdx}_value`] = 'Threshold value is required';
+                        });
+                    }
+                } else if (rt === 'QUALITATIVE') {
+                    if (!Array.isArray(param.qualitativeOptions?.options) || param.qualitativeOptions.options.filter(o => o.trim()).length < 2) {
+                        paramError.qualitativeOptions = 'At least 2 options are required';
+                    }
+                    if (!param.qualitativeOptions?.normalValue?.trim()) {
+                        paramError.qualitativeNormal = 'Normal value must be selected';
                     }
                 }
 
@@ -152,13 +213,49 @@ const LabTestManagement = () => {
 
         setSubmitting(true);
         try {
+            // Sanitize parameters to ensure data integrity
+            const sanitizedParameters = formData.parameters.map(param => {
+                const rt = param.resultType || 'NUMERIC';
+                const cleanParam = {
+                    name: param.name,
+                    unit: param.unit,
+                    resultType: rt
+                };
+
+                if (rt === 'NUMERIC') {
+                    cleanParam.referenceRanges = param.referenceRanges.map(r => ({
+                        gender: r.gender,
+                        min: Number(r.min),
+                        max: Number(r.max)
+                    }));
+                } else if (rt === 'UNISEX_NUMERIC') {
+                    cleanParam.unisexRange = {
+                        min: Number(param.unisexRange.min),
+                        max: Number(param.unisexRange.max)
+                    };
+                } else if (rt === 'COMPARISON') {
+                    cleanParam.comparisonRanges = (param.comparisonRanges || []).map(cr => ({
+                        ...(cr.gender ? { gender: cr.gender } : {}),
+                        comparator: cr.comparator,
+                        value: Number(cr.value)
+                    }));
+                } else if (rt === 'QUALITATIVE') {
+                    cleanParam.qualitativeOptions = {
+                        options: param.qualitativeOptions.options.filter(o => o.trim() !== ''),
+                        normalValue: param.qualitativeOptions.normalValue
+                    };
+                }
+
+                return cleanParam;
+            });
+
             const submitData = {
                 testName: formData.testName,
                 departmentId: formData.departmentId,
                 price: Number(formData.price),
                 status: formData.status,
                 labId: formData.labId,
-                parameters: formData.parameters,
+                parameters: sanitizedParameters,
                 specializationIds: formData.specializationIds
             };
 
@@ -173,8 +270,9 @@ const LabTestManagement = () => {
             resetForm();
             fetchTests();
         } catch (error) {
-            showToast(error.message || 'Failed to save lab test', 'error');
             console.error('Submit test error:', error);
+            const errorMessage = error.response?.data?.message || error.message || 'Failed to save lab test';
+            showToast(errorMessage, 'error');
         } finally {
             setSubmitting(false);
         }
@@ -207,8 +305,11 @@ const LabTestManagement = () => {
                     name: '',
                     parameterType: 'QUANTITATIVE',
                     unit: '',
+                    resultType: 'NUMERIC',
                     referenceRanges: [{ gender: 'Male', min: '', max: '' }],
-                    qualitativeOptions: []
+                    unisexRange: { min: '', max: '' },
+                    comparisonRanges: [{ comparator: '<', value: '' }],
+                    qualitativeOptions: { options: ['', ''], normalValue: '' }
                 }
             ]
         }));
@@ -280,14 +381,18 @@ const LabTestManagement = () => {
         setEditingTest(test);
         setFormData({
             testName: test.testName || '',
-            departmentId: test.departmentId?._id || test.departmentId || '', // Handle populated or raw ID
+            departmentId: test.departmentId?._id || test.departmentId || '',
             price: test.price?.toString() || '',
             status: test.status || 'Active',
             labId: test.labId || user?.labId,
             parameters: Array.isArray(test.parameters)
                 ? test.parameters.map(p => ({
                     ...p,
-                    referenceRanges: Array.isArray(p.referenceRanges) ? p.referenceRanges : []
+                    resultType: p.resultType || 'NUMERIC',
+                    referenceRanges: Array.isArray(p.referenceRanges) ? p.referenceRanges : [],
+                    unisexRange: p.unisexRange || { min: '', max: '' },
+                    comparisonRanges: Array.isArray(p.comparisonRanges) && p.comparisonRanges.length > 0 ? p.comparisonRanges : (p.comparisonRange ? [p.comparisonRange] : [{ comparator: '<', value: '' }]),
+                    qualitativeOptions: p.qualitativeOptions || { options: ['', ''], normalValue: '' }
                 }))
                 : [],
             specializationIds: Array.isArray(test.specializations) ? test.specializations.map(s => s._id || s.id) : []
@@ -337,6 +442,56 @@ const LabTestManagement = () => {
                     Add Lab Test
                 </button>
             </div>
+
+            {/* Search & Department Filter Bar */}
+            <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                        type="text"
+                        placeholder="Search tests by name..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
+                    />
+                </div>
+                <div className="relative">
+                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <select
+                        value={selectedDeptFilter}
+                        onChange={(e) => setSelectedDeptFilter(e.target.value)}
+                        className="pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm font-medium min-w-[220px] appearance-none cursor-pointer"
+                    >
+                        <option value="">All Departments ({tests.length})</option>
+                        {departments.map(dept => (
+                            <option key={dept._id} value={dept._id}>
+                                {dept.name} ({deptTestCounts[dept._id]?.count || 0})
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                {(searchTerm || selectedDeptFilter) && (
+                    <button
+                        onClick={() => { setSearchTerm(''); setSelectedDeptFilter(''); }}
+                        className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors text-sm font-medium flex items-center gap-1"
+                    >
+                        <X size={14} />
+                        Clear
+                    </button>
+                )}
+            </div>
+
+            {/* Active filter indicator */}
+            {(searchTerm || selectedDeptFilter) && (
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Showing {filteredTests.length} of {tests.length} tests
+                    {selectedDeptFilter && departments.find(d => d._id === selectedDeptFilter) && (
+                        <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full normal-case tracking-normal">
+                            {departments.find(d => d._id === selectedDeptFilter)?.name}
+                        </span>
+                    )}
+                </div>
+            )}
 
             {/* Test Form Modal */}
             {showForm && (
@@ -490,7 +645,7 @@ const LabTestManagement = () => {
                                             </div>
 
                                             {/* Parameter Basic Info */}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                                 <div>
                                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                                         Parameter Name *
@@ -499,9 +654,8 @@ const LabTestManagement = () => {
                                                         type="text"
                                                         value={parameter.name}
                                                         onChange={(e) => updateParameter(paramIndex, 'name', e.target.value)}
-                                                        className={`w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500 ${parameterErrors[paramIndex]?.name ? 'border-red-500' : 'border-gray-300'
-                                                            }`}
-                                                        placeholder="e.g., Hemoglobin, HIV Test"
+                                                        className={`w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500 ${parameterErrors[paramIndex]?.name ? 'border-red-500' : 'border-gray-300'}`}
+                                                        placeholder="e.g., Hemoglobin, Glucose"
                                                     />
                                                     {parameterErrors[paramIndex]?.name && (
                                                         <p className="text-red-500 text-xs mt-1">{parameterErrors[paramIndex].name}</p>
@@ -510,47 +664,39 @@ const LabTestManagement = () => {
 
                                                 <div>
                                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Parameter Type *
+                                                        Unit {(parameter.resultType || 'NUMERIC') !== 'QUALITATIVE' ? '*' : '(optional)'}
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={parameter.unit}
+                                                        onChange={(e) => updateParameter(paramIndex, 'unit', e.target.value)}
+                                                        className={`w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500 ${parameterErrors[paramIndex]?.unit ? 'border-red-500' : 'border-gray-300'}`}
+                                                        placeholder="e.g., mg/dL, mmol/L, %"
+                                                    />
+                                                    {parameterErrors[paramIndex]?.unit && (
+                                                        <p className="text-red-500 text-xs mt-1">{parameterErrors[paramIndex].unit}</p>
+                                                    )}
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                        Result Type *
                                                     </label>
                                                     <select
-                                                        value={parameter.parameterType || 'QUANTITATIVE'}
-                                                        onChange={(e) => updateParameter(paramIndex, 'parameterType', e.target.value)}
+                                                        value={parameter.resultType || 'NUMERIC'}
+                                                        onChange={(e) => updateParameter(paramIndex, 'resultType', e.target.value)}
                                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                                     >
-                                                        <option value="QUANTITATIVE">Quantitative (Numeric)</option>
-                                                        <option value="QUALITATIVE">Qualitative (Options)</option>
+                                                        <option value="NUMERIC">Numeric (Gender-specific)</option>
+                                                        <option value="UNISEX_NUMERIC">Numeric (Same for both)</option>
+                                                        <option value="COMPARISON">Comparison (&lt; / &gt;)</option>
+                                                        <option value="QUALITATIVE">Qualitative (Text)</option>
                                                     </select>
-                                                    <p className="text-xs text-gray-500 mt-1">
-                                                        {parameter.parameterType === 'QUALITATIVE' ? 'Predefined options (e.g., Positive/Negative)' : 'Numeric values with ranges'}
-                                                    </p>
                                                 </div>
                                             </div>
 
-                                            {/* Conditional Fields Based on Type */}
-                                            {(parameter.parameterType || 'QUANTITATIVE') === 'QUANTITATIVE' ? (
-                                                <>
-                                                    {/* Unit Field */}
-                                                    <div className="mb-4">
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                            Unit *
-                                                        </label>
-                                                        <input
-                                                            type="text"
-                                                            value={parameter.unit || ''}
-                                                            onChange={(e) => updateParameter(paramIndex, 'unit', e.target.value)}
-                                                            className={`w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500 ${parameterErrors[paramIndex]?.unit ? 'border-red-500' : 'border-gray-300'
-                                                                }`}
-                                                            placeholder="e.g., mg/dL, mmol/L, %"
-                                                        />
-                                                        {parameterErrors[paramIndex]?.unit && (
-                                                            <p className="text-red-500 text-xs mt-1">{parameterErrors[paramIndex].unit}</p>
-                                                        )}
-                                                    </div>
-                                                </>
-                                            ) : null}
-
-                                            {/* Reference Ranges (Quantitative Only) */}
-                                            {(parameter.parameterType || 'QUANTITATIVE') === 'QUANTITATIVE' && (
+                                            {/* ═══ NUMERIC: Gender-specific ranges ═══ */}
+                                            {(parameter.resultType || 'NUMERIC') === 'NUMERIC' && (
                                                 <div>
                                                     <div className="flex justify-between items-center mb-3">
                                                         <label className="block text-sm font-medium text-gray-700">
@@ -575,69 +721,42 @@ const LabTestManagement = () => {
                                                             <div key={rangeIndex} className="bg-white rounded-md border p-3">
                                                                 <div className="flex items-center gap-3">
                                                                     <div className="w-20">
-                                                                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                                                                            Gender *
-                                                                        </label>
+                                                                        <label className="block text-xs font-medium text-gray-700 mb-1">Gender *</label>
                                                                         <select
                                                                             value={range.gender}
                                                                             onChange={(e) => updateParameter(paramIndex, `referenceRanges.${rangeIndex}.gender`, e.target.value)}
-                                                                            className={`w-full px-2 py-1 text-xs border rounded focus:ring-indigo-500 focus:border-indigo-500 ${parameterErrors[paramIndex]?.[`referenceRanges_${rangeIndex}_gender`] ? 'border-red-500' : 'border-gray-300'
-                                                                                }`}
+                                                                            className={`w-full px-2 py-1 text-xs border rounded focus:ring-indigo-500 focus:border-indigo-500 ${parameterErrors[paramIndex]?.[`referenceRanges_${rangeIndex}_gender`] ? 'border-red-500' : 'border-gray-300'}`}
                                                                         >
                                                                             <option value="Male">Male</option>
                                                                             <option value="Female">Female</option>
                                                                         </select>
                                                                     </div>
-
                                                                     <div className="flex-1">
-                                                                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                                                                            Min - Max *
-                                                                        </label>
+                                                                        <label className="block text-xs font-medium text-gray-700 mb-1">Min - Max *</label>
                                                                         <div className="flex items-center gap-2">
-                                                                            <input
-                                                                                type="number"
-                                                                                step="0.01"
-                                                                                value={range.min}
+                                                                            <input type="number" step="0.01" value={range.min}
                                                                                 onChange={(e) => updateParameter(paramIndex, `referenceRanges.${rangeIndex}.min`, e.target.value)}
-                                                                                className={`w-20 px-2 py-1 text-xs border rounded focus:ring-indigo-500 focus:border-indigo-500 ${parameterErrors[paramIndex]?.[`referenceRanges_${rangeIndex}_values`] ? 'border-red-500' : 'border-gray-300'
-                                                                                    }`}
-                                                                                placeholder="Min"
-                                                                            />
+                                                                                className={`w-20 px-2 py-1 text-xs border rounded focus:ring-indigo-500 focus:border-indigo-500 ${parameterErrors[paramIndex]?.[`referenceRanges_${rangeIndex}_values`] ? 'border-red-500' : 'border-gray-300'}`}
+                                                                                placeholder="Min" />
                                                                             <span className="text-gray-500">-</span>
-                                                                            <input
-                                                                                type="number"
-                                                                                step="0.01"
-                                                                                value={range.max}
+                                                                            <input type="number" step="0.01" value={range.max}
                                                                                 onChange={(e) => updateParameter(paramIndex, `referenceRanges.${rangeIndex}.max`, e.target.value)}
-                                                                                className={`w-20 px-2 py-1 text-xs border rounded focus:ring-indigo-500 focus:border-indigo-500 ${parameterErrors[paramIndex]?.[`referenceRanges_${rangeIndex}_values`] ? 'border-red-500' : 'border-gray-300'
-                                                                                    }`}
-                                                                                placeholder="Max"
-                                                                            />
+                                                                                className={`w-20 px-2 py-1 text-xs border rounded focus:ring-indigo-500 focus:border-indigo-500 ${parameterErrors[paramIndex]?.[`referenceRanges_${rangeIndex}_values`] ? 'border-red-500' : 'border-gray-300'}`}
+                                                                                placeholder="Max" />
                                                                         </div>
                                                                     </div>
-
                                                                     {parameter.referenceRanges.length > 1 && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => removeReferenceRange(paramIndex, rangeIndex)}
-                                                                            className="text-red-500 hover:text-red-700 p-1"
-                                                                            title="Remove Range"
-                                                                        >
+                                                                        <button type="button" onClick={() => removeReferenceRange(paramIndex, rangeIndex)}
+                                                                            className="text-red-500 hover:text-red-700 p-1" title="Remove Range">
                                                                             <X size={14} />
                                                                         </button>
                                                                     )}
                                                                 </div>
-
-                                                                {/* Error messages for this range */}
                                                                 {parameterErrors[paramIndex]?.[`referenceRanges_${rangeIndex}_gender`] && (
-                                                                    <p className="text-red-500 text-xs mt-1">
-                                                                        {parameterErrors[paramIndex][`referenceRanges_${rangeIndex}_gender`]}
-                                                                    </p>
+                                                                    <p className="text-red-500 text-xs mt-1">{parameterErrors[paramIndex][`referenceRanges_${rangeIndex}_gender`]}</p>
                                                                 )}
                                                                 {parameterErrors[paramIndex]?.[`referenceRanges_${rangeIndex}_values`] && (
-                                                                    <p className="text-red-500 text-xs mt-1 px-3">
-                                                                        {parameterErrors[paramIndex][`referenceRanges_${rangeIndex}_values`]}
-                                                                    </p>
+                                                                    <p className="text-red-500 text-xs mt-1 px-3">{parameterErrors[paramIndex][`referenceRanges_${rangeIndex}_values`]}</p>
                                                                 )}
                                                             </div>
                                                         ))}
@@ -645,83 +764,188 @@ const LabTestManagement = () => {
                                                 </div>
                                             )}
 
-                                            {/* Qualitative Options (Qualitative Only) */}
-                                            {parameter.parameterType === 'QUALITATIVE' && (
+                                            {/* ═══ UNISEX_NUMERIC: Single min-max range ═══ */}
+                                            {parameter.resultType === 'UNISEX_NUMERIC' && (
                                                 <div>
-                                                    <div className="flex justify-between items-center mb-3">
-                                                        <label className="block text-sm font-medium text-gray-700">
-                                                            Qualitative Options *
-                                                        </label>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                const currentOptions = parameter.qualitativeOptions || [];
-                                                                updateParameter(paramIndex, 'qualitativeOptions', [
-                                                                    ...currentOptions,
-                                                                    { value: '', isNormal: true, displayOrder: currentOptions.length + 1 }
-                                                                ]);
-                                                            }}
-                                                            className="text-indigo-600 hover:text-indigo-700 text-sm flex items-center gap-1"
-                                                        >
-                                                            <Plus size={14} />
-                                                            Add Option
-                                                        </button>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Normal Range (Both Genders) *</label>
+                                                    <div className="bg-white rounded-md border p-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="flex-1">
+                                                                <label className="block text-xs font-medium text-gray-700 mb-1">Min</label>
+                                                                <input type="number" step="0.01"
+                                                                    value={parameter.unisexRange?.min ?? ''}
+                                                                    onChange={(e) => updateParameter(paramIndex, 'unisexRange', { ...parameter.unisexRange, min: e.target.value })}
+                                                                    className={`w-full px-2 py-1 text-xs border rounded ${parameterErrors[paramIndex]?.unisexRange ? 'border-red-500' : 'border-gray-300'}`}
+                                                                    placeholder="Min" />
+                                                            </div>
+                                                            <span className="text-gray-400 font-bold mt-4">—</span>
+                                                            <div className="flex-1">
+                                                                <label className="block text-xs font-medium text-gray-700 mb-1">Max</label>
+                                                                <input type="number" step="0.01"
+                                                                    value={parameter.unisexRange?.max ?? ''}
+                                                                    onChange={(e) => updateParameter(paramIndex, 'unisexRange', { ...parameter.unisexRange, max: e.target.value })}
+                                                                    className={`w-full px-2 py-1 text-xs border rounded ${parameterErrors[paramIndex]?.unisexRange ? 'border-red-500' : 'border-gray-300'}`}
+                                                                    placeholder="Max" />
+                                                            </div>
+                                                        </div>
                                                     </div>
-
-                                                    {parameterErrors[paramIndex]?.qualitativeOptions && (
-                                                        <p className="text-red-500 text-xs mb-2">{parameterErrors[paramIndex].qualitativeOptions}</p>
+                                                    {parameterErrors[paramIndex]?.unisexRange && (
+                                                        <p className="text-red-500 text-xs mt-1">{parameterErrors[paramIndex].unisexRange}</p>
                                                     )}
+                                                </div>
+                                            )}
 
-                                                    <div className="space-y-2">
-                                                        {(parameter.qualitativeOptions || []).map((option, optIndex) => (
-                                                            <div key={optIndex} className="bg-white rounded-md border p-3 flex items-center gap-3">
-                                                                <div className="flex-1">
-                                                                    <input
-                                                                        type="text"
-                                                                        value={option.value}
-                                                                        onChange={(e) => {
-                                                                            const newOptions = [...(parameter.qualitativeOptions || [])];
-                                                                            newOptions[optIndex] = { ...newOptions[optIndex], value: e.target.value };
-                                                                            updateParameter(paramIndex, 'qualitativeOptions', newOptions);
-                                                                        }}
-                                                                        placeholder="e.g., Positive, Negative, Present"
-                                                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                                    />
+                                            {/* ═══ COMPARISON: Comparator + Value (unisex or gender-specific) ═══ */}
+                                            {parameter.resultType === 'COMPARISON' && (() => {
+                                                const ranges = parameter.comparisonRanges || [{ comparator: '<', value: '' }];
+                                                const isGenderSpecific = ranges.length > 1 || (ranges.length === 1 && ranges[0].gender);
+                                                return (
+                                                    <div>
+                                                        <div className="flex justify-between items-center mb-2">
+                                                            <label className="block text-sm font-medium text-gray-700">Comparison Range *</label>
+                                                            <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isGenderSpecific}
+                                                                    onChange={(e) => {
+                                                                        if (e.target.checked) {
+                                                                            // Switch to gender-specific: Male + Female rows
+                                                                            const first = ranges[0] || { comparator: '<', value: '' };
+                                                                            updateParameter(paramIndex, 'comparisonRanges', [
+                                                                                { gender: 'Male', comparator: first.comparator || '<', value: first.value ?? '' },
+                                                                                { gender: 'Female', comparator: first.comparator || '<', value: first.value ?? '' }
+                                                                            ]);
+                                                                        } else {
+                                                                            // Switch to unisex: single row without gender
+                                                                            const first = ranges[0] || { comparator: '<', value: '' };
+                                                                            updateParameter(paramIndex, 'comparisonRanges', [
+                                                                                { comparator: first.comparator || '<', value: first.value ?? '' }
+                                                                            ]);
+                                                                        }
+                                                                    }}
+                                                                    className="accent-indigo-600"
+                                                                />
+                                                                <span className="text-gray-600 font-medium">Gender-specific</span>
+                                                            </label>
+                                                        </div>
+
+                                                        {parameterErrors[paramIndex]?.comparisonRanges && (
+                                                            <p className="text-red-500 text-xs mb-2">{parameterErrors[paramIndex].comparisonRanges}</p>
+                                                        )}
+
+                                                        <div className="space-y-2">
+                                                            {ranges.map((cr, crIdx) => (
+                                                                <div key={crIdx} className="bg-white rounded-md border p-3">
+                                                                    <div className="flex items-center gap-3">
+                                                                        {isGenderSpecific && (
+                                                                            <div className="w-20">
+                                                                                <label className="block text-xs font-medium text-gray-700 mb-1">Gender</label>
+                                                                                <span className="block px-2 py-1 text-xs bg-gray-100 rounded font-bold text-gray-700">{cr.gender}</span>
+                                                                            </div>
+                                                                        )}
+                                                                        <div className="w-24">
+                                                                            <label className="block text-xs font-medium text-gray-700 mb-1">Comparator</label>
+                                                                            <select
+                                                                                value={cr.comparator || '<'}
+                                                                                onChange={(e) => {
+                                                                                    const newRanges = [...ranges];
+                                                                                    newRanges[crIdx] = { ...newRanges[crIdx], comparator: e.target.value };
+                                                                                    updateParameter(paramIndex, 'comparisonRanges', newRanges);
+                                                                                }}
+                                                                                className={`w-full px-2 py-1 text-xs border rounded ${parameterErrors[paramIndex]?.[`cr_${crIdx}_comparator`] ? 'border-red-500' : 'border-gray-300'}`}
+                                                                            >
+                                                                                <option value="<">&lt; (Less than)</option>
+                                                                                <option value="<=">&le; (Less or equal)</option>
+                                                                                <option value=">">&gt; (Greater than)</option>
+                                                                                <option value=">=">&ge; (Greater or equal)</option>
+                                                                            </select>
+                                                                        </div>
+                                                                        <div className="flex-1">
+                                                                            <label className="block text-xs font-medium text-gray-700 mb-1">Threshold</label>
+                                                                            <input type="number" step="0.01"
+                                                                                value={cr.value ?? ''}
+                                                                                onChange={(e) => {
+                                                                                    const newRanges = [...ranges];
+                                                                                    newRanges[crIdx] = { ...newRanges[crIdx], value: e.target.value };
+                                                                                    updateParameter(paramIndex, 'comparisonRanges', newRanges);
+                                                                                }}
+                                                                                className={`w-full px-2 py-1 text-xs border rounded ${parameterErrors[paramIndex]?.[`cr_${crIdx}_value`] ? 'border-red-500' : 'border-gray-300'}`}
+                                                                                placeholder="e.g., 140" />
+                                                                        </div>
+                                                                    </div>
+                                                                    {parameterErrors[paramIndex]?.[`cr_${crIdx}_comparator`] && (
+                                                                        <p className="text-red-500 text-xs mt-1">{parameterErrors[paramIndex][`cr_${crIdx}_comparator`]}</p>
+                                                                    )}
+                                                                    {parameterErrors[paramIndex]?.[`cr_${crIdx}_value`] && (
+                                                                        <p className="text-red-500 text-xs mt-1">{parameterErrors[paramIndex][`cr_${crIdx}_value`]}</p>
+                                                                    )}
                                                                 </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <label className="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={option.isNormal}
-                                                                            onChange={(e) => {
-                                                                                const newOptions = [...(parameter.qualitativeOptions || [])];
-                                                                                newOptions[optIndex] = { ...newOptions[optIndex], isNormal: e.target.checked };
-                                                                                updateParameter(paramIndex, 'qualitativeOptions', newOptions);
-                                                                            }}
-                                                                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                                                        />
-                                                                        Normal
-                                                                    </label>
-                                                                </div>
-                                                                {(parameter.qualitativeOptions || []).length > 1 && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            const newOptions = (parameter.qualitativeOptions || []).filter((_, i) => i !== optIndex);
-                                                                            updateParameter(paramIndex, 'qualitativeOptions', newOptions);
-                                                                        }}
-                                                                        className="text-red-500 hover:text-red-700 p-1"
-                                                                        title="Remove Option"
-                                                                    >
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+
+                                            {/* ═══ QUALITATIVE: Text Options ═══ */}
+                                            {parameter.resultType === 'QUALITATIVE' && (
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Result Options *</label>
+                                                    <div className="bg-white rounded-md border p-3 space-y-3">
+                                                        {(parameter.qualitativeOptions?.options || ['', '']).map((opt, optIndex) => (
+                                                            <div key={optIndex} className="flex items-center gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={opt}
+                                                                    onChange={(e) => {
+                                                                        const newOpts = [...(parameter.qualitativeOptions?.options || [])];
+                                                                        newOpts[optIndex] = e.target.value;
+                                                                        updateParameter(paramIndex, 'qualitativeOptions', { ...parameter.qualitativeOptions, options: newOpts });
+                                                                    }}
+                                                                    className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
+                                                                    placeholder={`Option ${optIndex + 1} (e.g., ${optIndex === 0 ? 'Present' : 'Absent'})`}
+                                                                />
+                                                                {(parameter.qualitativeOptions?.options?.length || 0) > 2 && (
+                                                                    <button type="button" onClick={() => {
+                                                                        const newOpts = (parameter.qualitativeOptions?.options || []).filter((_, i) => i !== optIndex);
+                                                                        const currentNormal = parameter.qualitativeOptions?.normalValue;
+                                                                        updateParameter(paramIndex, 'qualitativeOptions', {
+                                                                            ...parameter.qualitativeOptions,
+                                                                            options: newOpts,
+                                                                            normalValue: newOpts.includes(currentNormal) ? currentNormal : ''
+                                                                        });
+                                                                    }} className="text-red-500 hover:text-red-700 p-1">
                                                                         <X size={14} />
                                                                     </button>
                                                                 )}
                                                             </div>
                                                         ))}
+                                                        <button type="button" onClick={() => {
+                                                            const newOpts = [...(parameter.qualitativeOptions?.options || []), ''];
+                                                            updateParameter(paramIndex, 'qualitativeOptions', { ...parameter.qualitativeOptions, options: newOpts });
+                                                        }} className="text-indigo-600 hover:text-indigo-700 text-xs flex items-center gap-1">
+                                                            <Plus size={12} /> Add Option
+                                                        </button>
+
+                                                        <div className="pt-2 border-t">
+                                                            <label className="block text-xs font-medium text-gray-700 mb-1">Normal Value *</label>
+                                                            <select
+                                                                value={parameter.qualitativeOptions?.normalValue || ''}
+                                                                onChange={(e) => updateParameter(paramIndex, 'qualitativeOptions', { ...parameter.qualitativeOptions, normalValue: e.target.value })}
+                                                                className={`w-full px-2 py-1 text-xs border rounded ${parameterErrors[paramIndex]?.qualitativeNormal ? 'border-red-500' : 'border-gray-300'}`}
+                                                            >
+                                                                <option value="">Select normal value...</option>
+                                                                {(parameter.qualitativeOptions?.options || []).filter(o => o.trim()).map((o, i) => (
+                                                                    <option key={i} value={o}>{o}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
                                                     </div>
-                                                    <p className="text-xs text-gray-500 mt-2">
-                                                        💡 Check "Normal" for expected/healthy results. Unchecked options will be flagged as abnormal.
-                                                    </p>
+                                                    {parameterErrors[paramIndex]?.qualitativeOptions && (
+                                                        <p className="text-red-500 text-xs mt-1">{parameterErrors[paramIndex].qualitativeOptions}</p>
+                                                    )}
+                                                    {parameterErrors[paramIndex]?.qualitativeNormal && (
+                                                        <p className="text-red-500 text-xs mt-1">{parameterErrors[paramIndex].qualitativeNormal}</p>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -767,12 +991,12 @@ const LabTestManagement = () => {
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
                         <p className="text-gray-500 mt-2">Loading lab tests...</p>
                     </div>
-                ) : tests.length === 0 ? (
+                ) : filteredTests.length === 0 ? (
                     <div className="p-8 text-center text-gray-500">
                         <Microscope size={48} className="mx-auto mb-4 opacity-50" />
-                        <p>No lab tests found</p>
+                        <p>{searchTerm || selectedDeptFilter ? 'No tests match your filters' : 'No lab tests found'}</p>
                         <p className="text-sm text-gray-400 mt-1">
-                            Create your first lab test to get started
+                            {searchTerm || selectedDeptFilter ? 'Try adjusting your search or department filter' : 'Create your first lab test to get started'}
                         </p>
                     </div>
                 ) : (
@@ -803,7 +1027,7 @@ const LabTestManagement = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {tests.map((test) => (
+                                    {filteredTests.map((test) => (
                                         <tr key={test._id || test.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-sm font-medium text-gray-900">

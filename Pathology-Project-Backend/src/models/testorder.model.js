@@ -114,11 +114,15 @@ const testItemSchema = new mongoose.Schema(
         value: String,
 
         unit: String,
-
-        // For QUANTITATIVE parameters
+        resultType: {
+          type: String,
+          enum: ["NUMERIC", "UNISEX_NUMERIC", "COMPARISON", "QUALITATIVE"],
+          default: "NUMERIC",
+        },
         referenceRange: {
           min: Number,
           max: Number,
+          displayText: String, // e.g. "70 - 110", "< 140", "Negative"
         },
 
         // Validation flags

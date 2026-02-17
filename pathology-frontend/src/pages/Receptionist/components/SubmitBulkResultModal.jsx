@@ -10,6 +10,49 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
     const [results, setResults] = useState({}); // Map of parameterName -> value
     const [displayTests, setDisplayTests] = useState([]); // Local state for tests with updated definitions
 
+    /**
+     * Build a display-friendly reference range string from a master parameter definition.
+     */
+    const buildDisplayText = (masterParam) => {
+        const rt = masterParam.resultType || 'NUMERIC';
+        if (rt === 'NUMERIC') {
+            return (masterParam.referenceRanges || [])
+                .map(r => `${r.gender}: ${r.min} - ${r.max}`)
+                .join(' | ');
+        }
+        if (rt === 'UNISEX_NUMERIC') {
+            const r = masterParam.unisexRange || {};
+            return `${r.min} - ${r.max}`;
+        }
+        if (rt === 'COMPARISON') {
+            const ranges = masterParam.comparisonRanges || (masterParam.comparisonRange ? [masterParam.comparisonRange] : []);
+            return ranges
+                .map(cr => `${cr.gender ? cr.gender + ': ' : ''}${cr.comparator || '<'} ${cr.value}`)
+                .join(' | ');
+        }
+        if (rt === 'QUALITATIVE') {
+            const q = masterParam.qualitativeOptions || {};
+            return `Normal: ${q.normalValue || ''}`;
+        }
+        return 'N/A';
+    };
+
+    /**
+     * Build the referenceRange object to store along with the result.
+     */
+    const buildReferenceRangeObj = (masterParam) => {
+        const rt = masterParam.resultType || 'NUMERIC';
+        const obj = { displayText: buildDisplayText(masterParam) };
+        if (rt === 'NUMERIC') {
+            const first = (masterParam.referenceRanges || [])[0];
+            if (first) { obj.min = first.min; obj.max = first.max; }
+        } else if (rt === 'UNISEX_NUMERIC') {
+            const r = masterParam.unisexRange || {};
+            obj.min = r.min; obj.max = r.max;
+        }
+        return obj;
+    };
+
     // Initialize results from all tests in the order AND fetch latest definitions
     useEffect(() => {
         const initialize = async () => {
@@ -53,17 +96,18 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
                     const updatedTests = currentTests.map(test => {
                         const masterDef = definitionMap[test.testId];
                         if (masterDef) {
-                            // Merge parameters
                             const mergedParams = masterDef.parameters.map(masterParam => {
-                                // Find if this param exists in snapshot (to keep value if any)
                                 const snapshotParam = test.parameters.find(p => p.parameterName === masterParam.name);
                                 return {
                                     parameterName: masterParam.name,
                                     value: snapshotParam ? snapshotParam.value : '',
                                     unit: masterParam.unit,
-                                    referenceRange: masterParam.referenceRanges?.[0] || masterParam.referenceRange,
-                                    parameterType: masterParam.parameterType || 'QUANTITATIVE',
-                                    qualitativeOptions: masterParam.qualitativeOptions || []
+                                    resultType: masterParam.resultType || 'NUMERIC',
+                                    referenceRange: buildReferenceRangeObj(masterParam),
+                                    qualitativeOptions: masterParam.qualitativeOptions || null,
+                                    comparisonRanges: masterParam.comparisonRanges || (masterParam.comparisonRange ? [masterParam.comparisonRange] : []),
+                                    unisexRange: masterParam.unisexRange || null,
+                                    referenceRanges: masterParam.referenceRanges || [],
                                 };
                             });
                             return { ...test, parameters: mergedParams };
@@ -72,7 +116,6 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
                     });
 
                     setDisplayTests(updatedTests);
-                    // console.log("Bulk Modal: Refreshed definitions", updatedTests);
 
                 } catch (err) {
                     console.warn("Bulk Modal: Failed to refresh definitions", err);
@@ -97,12 +140,8 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Convert results map to array of objects as expected by backend
-        // Backend expects: [{ parameterName, value }, ...]
         const resultsArray = Object.entries(results)
-            .filter(([_, value]) => value && value.trim() !== '') // Only send non-empty values? 
-            // Actually, backend updates if param matches. Sending empty might clear it? 
-            // Let's send all modified or non-empty ones.
+            .filter(([_, value]) => value && value.trim() !== '')
             .map(([parameterName, value]) => ({
                 parameterName,
                 value
@@ -115,9 +154,6 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
 
         setIsLoading(true);
         try {
-            // We need billId. Assuming order.billId exists.
-            // If not, we might need to fallback or ask user.
-            // Based on service code, order.billId is set on creation.
             const billId = order.billId;
 
             if (!billId) {
@@ -130,7 +166,6 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
 
             const response = await submitBulkResultsByBill(billId, payload);
 
-            // Check if order is completed and fetch reports if so
             if (response.overallStatus === 'COMPLETED' && order.patientId?._id) {
                 try {
                     await getPatientReports(order.patientId._id);
@@ -154,25 +189,69 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
         }
     };
 
-    const validateResult = (value, range) => {
+    /**
+     * Validate a result value against its parameter definition.
+     * Supports all 4 result types.
+     */
+    const validateResult = (value, param) => {
         if (!value || value.trim() === '') return { status: 'normal' };
 
-        // Try parsing number
-        const numVal = parseFloat(value);
-        if (isNaN(numVal)) return { status: 'normal' }; // Non-numeric values are neutral
+        const rt = param.resultType || 'NUMERIC';
 
+        // QUALITATIVE
+        if (rt === 'QUALITATIVE') {
+            const normalVal = param.qualitativeOptions?.normalValue || param.referenceRange?.displayText?.replace('Normal: ', '');
+            if (normalVal && value.trim().toLowerCase() !== normalVal.trim().toLowerCase()) {
+                return { status: 'abnormal', type: 'abnormal' };
+            }
+            return { status: 'normal' };
+        }
+
+        // Numeric types
+        const numVal = parseFloat(value);
+        if (isNaN(numVal)) return { status: 'normal' };
+
+        // COMPARISON
+        if (rt === 'COMPARISON') {
+            const ranges = param.comparisonRanges || (param.comparisonRange ? [param.comparisonRange] : []);
+            const comp = ranges[0];
+            if (comp) {
+                const comparator = comp.comparator;
+                const threshold = Number(comp.value);
+                if (comparator && !isNaN(threshold)) {
+                    if (comparator === '<' && numVal >= threshold) return { status: 'abnormal', type: 'high' };
+                    if (comparator === '<=' && numVal > threshold) return { status: 'abnormal', type: 'high' };
+                    if (comparator === '>' && numVal <= threshold) return { status: 'abnormal', type: 'low' };
+                    if (comparator === '>=' && numVal < threshold) return { status: 'abnormal', type: 'low' };
+                }
+            }
+            return { status: 'normal' };
+        }
+
+        // NUMERIC / UNISEX_NUMERIC — use min/max from referenceRange
+        const range = param.referenceRange;
         if (range && typeof range === 'object') {
             const { min, max } = range;
-            // Check low
             if (min !== undefined && min !== null && numVal < min) {
                 return { status: 'abnormal', type: 'low' };
             }
-            // Check high
             if (max !== undefined && max !== null && numVal > max) {
                 return { status: 'abnormal', type: 'high' };
             }
         }
         return { status: 'normal' };
+    };
+
+    /**
+     * Format the reference range display text for a parameter.
+     */
+    const formatRefRange = (param) => {
+        if (param.referenceRange?.displayText) return param.referenceRange.displayText;
+        if (typeof param.referenceRange === 'object' && param.referenceRange !== null) {
+            const { min, max } = param.referenceRange;
+            if (min != null && max != null) return `${min} - ${max}`;
+        }
+        return param.referenceRange || 'N/A';
     };
 
     return (
@@ -211,9 +290,9 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {test.parameters.map((param, paramIndex) => {
                                         const currentValue = results[param.parameterName] || '';
-                                        const validation = validateResult(currentValue, param.referenceRange);
+                                        const validation = validateResult(currentValue, param);
                                         const isAbnormal = validation.status === 'abnormal';
-                                        const isQualitative = param.parameterType === 'QUALITATIVE';
+                                        const rt = param.resultType || 'NUMERIC';
 
                                         return (
                                             <div key={paramIndex} className={`p-3 rounded-xl border transition-all ${isAbnormal ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-100'}`}>
@@ -221,20 +300,19 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
                                                     {param.parameterName}
                                                 </label>
                                                 <div className="flex gap-2 relative">
-                                                    {isQualitative ? (
+                                                    {/* QUALITATIVE: Render dropdown */}
+                                                    {rt === 'QUALITATIVE' && param.qualitativeOptions?.options?.length ? (
                                                         <select
                                                             value={currentValue}
                                                             onChange={(e) => handleResultChange(param.parameterName, e.target.value)}
                                                             className={`flex-1 px-3 py-2 border rounded-lg text-sm font-medium outline-none transition-all ${isAbnormal
-                                                                    ? 'bg-white border-red-300 text-red-700 focus:ring-2 focus:ring-red-200 focus:border-red-400'
-                                                                    : 'bg-white border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'
+                                                                ? 'bg-white border-red-300 text-red-700 focus:ring-2 focus:ring-red-200 focus:border-red-400'
+                                                                : 'bg-white border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'
                                                                 }`}
                                                         >
-                                                            <option value="">Select...</option>
-                                                            {(param.qualitativeOptions || []).map((opt, optIdx) => (
-                                                                <option key={optIdx} value={opt.value}>
-                                                                    {opt.value} {opt.isNormal ? '✓' : '⚠️'}
-                                                                </option>
+                                                            <option value="">Select result...</option>
+                                                            {param.qualitativeOptions.options.filter(o => o.trim()).map((opt, i) => (
+                                                                <option key={i} value={opt}>{opt}</option>
                                                             ))}
                                                         </select>
                                                     ) : (
@@ -249,28 +327,20 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
                                                                 }`}
                                                         />
                                                     )}
-                                                    {!isQualitative && (
-                                                        <div className={`flex items-center justify-center px-2 rounded-lg text-xs font-bold min-w-[3rem] ${isAbnormal ? 'bg-red-100 text-red-600' : 'bg-slate-200 text-slate-600'}`}>
-                                                            {param.unit || '-'}
-                                                        </div>
+                                                    <div className={`flex items-center justify-center px-2 rounded-lg text-xs font-bold min-w-[3rem] ${isAbnormal ? 'bg-red-100 text-red-600' : 'bg-slate-200 text-slate-600'}`}>
+                                                        {param.unit || '-'}
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-between items-center mt-1">
+                                                    <div className={`text-[10px] ${isAbnormal ? 'text-red-500' : 'text-slate-400'}`}>
+                                                        Range: {formatRefRange(param)}
+                                                    </div>
+                                                    {isAbnormal && (
+                                                        <span className="text-[10px] font-bold text-red-500 uppercase">
+                                                            {validation.type}
+                                                        </span>
                                                     )}
                                                 </div>
-                                                {!isQualitative && (
-                                                    <div className="flex justify-between items-center mt-1">
-                                                        <div className={`text-[10px] ${isAbnormal ? 'text-red-500' : 'text-slate-400'}`}>
-                                                            Range: {
-                                                                typeof param.referenceRange === 'object' && param.referenceRange !== null
-                                                                    ? `${param.referenceRange.min || ''} - ${param.referenceRange.max || ''}`
-                                                                    : param.referenceRange || 'N/A'
-                                                            }
-                                                        </div>
-                                                        {isAbnormal && (
-                                                            <span className="text-[10px] font-bold text-red-500 uppercase">
-                                                                {validation.type}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
                                             </div>
                                         );
                                     })}

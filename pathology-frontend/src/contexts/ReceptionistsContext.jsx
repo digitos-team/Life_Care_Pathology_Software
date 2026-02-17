@@ -5,6 +5,7 @@ import { getPatients } from '../api/receptionist/patient.api';
 import { getDoctors } from '../api/admin/doctors.api';
 import { getLabTests } from '../api/admin/labTest.api';
 import { getLabDetails } from '../api/admin/lab.api';
+import { getDepartments } from '../api/admin/department.api';
 
 export const ReceptionistContext = createContext(null);
 
@@ -15,6 +16,7 @@ export const ReceptionistProvider = ({ children }) => {
     const [bills, setBills] = useState([]);
     const [sampleQueue, setSampleQueue] = useState([]);
     const [labTests, setLabTests] = useState([]);
+    const [departments, setDepartments] = useState([]);
 
     // Lab Configuration
     const [labConfig, setLabConfig] = useState(null);
@@ -46,11 +48,12 @@ export const ReceptionistProvider = ({ children }) => {
         setLoading(true);
         try {
             // Fetch all initial data
-            const [pData, dData, tData, lData] = await Promise.all([
+            const [pData, dData, tData, lData, depData] = await Promise.all([
                 getPatients().catch(err => { console.error("Patients fetch failed", err); return null; }),
                 getDoctors().catch(err => { console.error("Doctors fetch failed", err); return null; }),
                 getLabTests().catch(err => { console.error("Lab Tests fetch failed", err); return null; }),
-                getLabDetails().catch(err => { console.error("Lab details fetch failed", err); return null; })
+                getLabDetails().catch(err => { console.error("Lab details fetch failed", err); return null; }),
+                getDepartments().catch(err => { console.error("Departments fetch failed", err); return null; })
             ]);
 
             console.log('ReceptionistsContext - Raw API responses:', { pData, dData, tData });
@@ -81,6 +84,13 @@ export const ReceptionistProvider = ({ children }) => {
                 setLabConfig(lData.data || lData);
             }
 
+            // Extract departments
+            if (depData) {
+                const deptList = depData.data || depData || [];
+                setDepartments(Array.isArray(deptList) ? deptList : []);
+                console.log('ReceptionistsContext - Departments extracted:', deptList.length);
+            }
+
         } catch (err) {
             console.error("Failed to fetch initial data", err);
         } finally {
@@ -105,6 +115,7 @@ export const ReceptionistProvider = ({ children }) => {
             bills, setBills,
             sampleQueue, setSampleQueue,
             labTests, setLabTests,
+            departments, setDepartments,
             labConfig, updateLabSettings,
             metrics,
             loading,

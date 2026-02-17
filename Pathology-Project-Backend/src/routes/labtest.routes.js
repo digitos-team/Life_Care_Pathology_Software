@@ -26,8 +26,18 @@ router.post(
 );
 
 /**
+ * @route   GET /api/labtest/grouped-by-department
+ * @desc    Get all tests grouped by department
+ * @access  Admin, Operator
+ */
+router.get(
+    "/grouped-by-department",
+    testController.getTestsGroupedByDepartment
+);
+
+/**
  * @route   GET /api/tests
- * @desc    Get all active tests
+ * @desc    Get all active tests (supports ?departmentId=&search= filters)
  * @access  Admin, Operator
  */
 router.get(

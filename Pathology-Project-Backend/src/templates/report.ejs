@@ -461,107 +461,126 @@
                     </div>
                 </div>
 
-                <!-- Test Results Section -->
-                <% let sectionHeader="HAEMATOLOGY" ; if (order && order.tests && order.tests.length> 0) {
-                    const firstTest = order.tests[0];
-                    if (firstTest.testId && firstTest.testId.specialization) {
-                    sectionHeader = firstTest.testId.specialization;
-                    } else if (firstTest.testId && firstTest.testId.departmentId && firstTest.testId.departmentId.name)
+                <% var deptGroups={}; if (order && order.tests && order.tests.length> 0)
                     {
-                    sectionHeader = firstTest.testId.departmentId.name;
+                    order.tests.forEach(test => {
+                    let deptName = 'GENERAL';
+                    if (test.testId && test.testId.departmentId && test.testId.departmentId.name) {
+                    deptName = test.testId.departmentId.name;
+                    } else if (test.testId && test.testId.specialization) {
+                    deptName = test.testId.specialization;
                     }
+                    deptName = deptName.toUpperCase();
+                    if (!deptGroups[deptName]) deptGroups[deptName] = [];
+                    deptGroups[deptName].push(test);
+                    });
                     }
+
+                    var deptNames = Object.keys(deptGroups).sort();
                     %>
-                    <div class="section-header">
-                        <%= sectionHeader.toUpperCase() %>
-                    </div>
 
-                    <table class="results-table">
-                        <thead>
-                            <tr class="table-header">
-                                <th width="40%">TEST</th>
-                                <th width="15%" class="text-center">RESULT</th>
-                                <th width="15%" class="text-center">UNIT</th>
-                                <th width="30%">BIOLOGICAL REF RANGE</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% order.tests.forEach(test=> { %>
-                                <tr class="test-row">
-                                    <td colspan="4">
-                                        <%= test.testName || test.testId.testName %>
-                                    </td>
+                    <% deptNames.forEach(function(deptName) { %>
+                        <div class="section-header">
+                            <%= deptName %>
+                        </div>
+
+                        <table class="results-table">
+                            <thead>
+                                <tr class="table-header">
+                                    <th width="40%">TEST</th>
+                                    <th width="15%" class="text-center">RESULT</th>
+                                    <th width="15%" class="text-center">UNIT</th>
+                                    <th width="30%">BIOLOGICAL REF RANGE</th>
                                 </tr>
-                                <% if (test.results && test.results.length> 0) { %>
-                                    <% test.results.forEach(param=> { %>
-                                        <tr class="param-row">
-                                            <td style="padding-left: 20px;">
-                                                <%= param.parameterName %>
-                                            </td>
-                                            <td class="text-center"><strong>
-                                                    <%= param.value %>
-                                                </strong></td>
-                                            <td class="text-center">
-                                                <%= param.unit %>
-                                            </td>
-                                            <td>
-                                                <% if (typeof param.referenceRange==='object' ) { %>
-                                                    <%= param.referenceRange.min %> - <%= param.referenceRange.max %>
-                                                            <% } else { %>
-                                                                <%= param.referenceRange %>
-                                                                    <% } %>
-                                            </td>
-                                        </tr>
-                                        <% }) %>
-                                            <% } %>
-                                                <% }) %>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                <% deptGroups[deptName].forEach(test=> { %>
+                                    <tr class="test-row">
+                                        <td colspan="4">
+                                            <%= test.testName || test.testId.testName %>
+                                        </td>
+                                    </tr>
+                                    <% if (test.results && test.results.length> 0) { %>
+                                        <% test.results.forEach(param=> { %>
+                                            <tr class="param-row">
+                                                <td style="padding-left: 20px;">
+                                                    <%= param.parameterName %>
+                                                </td>
+                                                <td class="text-center"><strong>
+                                                        <%= param.value %>
+                                                    </strong></td>
+                                                <td class="text-center">
+                                                    <%= param.unit %>
+                                                </td>
+                                                <td>
+                                                    <% if (param.referenceRange && param.referenceRange.displayText) {
+                                                        %>
+                                                        <%= param.referenceRange.displayText %>
+                                                            <% } else if (typeof param.referenceRange==='object' &&
+                                                                param.referenceRange !==null && param.referenceRange.min
+                                                                !=null && param.referenceRange.max !=null) { %>
+                                                                <%= param.referenceRange.min %> - <%=
+                                                                        param.referenceRange.max %>
+                                                                        <% } else if (param.referenceRange) { %>
+                                                                            <%= param.referenceRange %>
+                                                                                <% } else { %>
+                                                                                    -
+                                                                                    <% } %>
+                                                </td>
+                                            </tr>
+                                            <% }) %>
+                                                <% } %>
+                                                    <% }) %>
+                            </tbody>
+                        </table>
+                        <% }) %>
 
-                    <!-- Footer -->
-                    <footer>
-                        <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
-                            <!-- Signatures and Stamp Row -->
-                            <div
-                                style="display: flex; justify-content: center; align-items: flex-end; width: 100%; margin-bottom: 20px;">
-                                <!-- Left Signature -->
-                                <div class="sig-box" style="text-align: right; width: 180px; margin-right: 40px;">
-                                    <div class="sig-name">Mrs. Trupti Patil</div>
-                                    <div class="sig-title">M.SC. ADMLT. (Mum)</div>
-                                    <div class="sig-title">Lab. Technician</div>
-                                </div>
-
-                                <!-- Center Stamp -->
-                                <% if (typeof footerStamp !=='undefined' && footerStamp) { %>
-                                    <div style="display: flex; justify-content: center;">
-                                        <img src="<%= footerStamp %>" style="height: 80px;">
-                                    </div>
-                                    <% } %>
-
-                                        <!-- Right Signature -->
-                                        <div class="sig-box" style="text-align: left; width: 180px; margin-left: 40px;">
-                                            <div class="sig-name">Dr. A. Muloy</div>
-                                            <div class="sig-title">(MD. (Pathology))</div>
-                                            <div class="sig-title">Reg. No 2019/03/11113</div>
+                            <!-- Footer -->
+                            <footer>
+                                <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+                                    <!-- Signatures and Stamp Row -->
+                                    <div
+                                        style="display: flex; justify-content: center; align-items: flex-end; width: 100%; margin-bottom: 20px;">
+                                        <!-- Left Signature -->
+                                        <div class="sig-box"
+                                            style="text-align: right; width: 180px; margin-right: 40px;">
+                                            <div class="sig-name">Mrs. Trupti Patil</div>
+                                            <div class="sig-title">M.SC. ADMLT. (Mum)</div>
+                                            <div class="sig-title">Lab. Technician</div>
                                         </div>
-                            </div>
+
+                                        <!-- Center Stamp -->
+                                        <% if (typeof footerStamp !=='undefined' && footerStamp) { %>
+                                            <div style="display: flex; justify-content: center;">
+                                                <img src="<%= footerStamp %>" style="height: 80px;">
+                                            </div>
+                                            <% } %>
+
+                                                <!-- Right Signature -->
+                                                <div class="sig-box"
+                                                    style="text-align: left; width: 180px; margin-left: 40px;">
+                                                    <div class="sig-name">Dr. A. Muloy</div>
+                                                    <div class="sig-title">(MD. (Pathology))</div>
+                                                    <div class="sig-title">Reg. No 2019/03/11113</div>
+                                                </div>
+                                    </div>
 
 
 
-                            <!-- ISO Mark (Big) -->
-                            <% if (typeof isoMark !=='undefined' && isoMark) { %>
-                                <div style="margin-top: 10px;">
-                                    <img src="<%= isoMark %>" alt="ISO" style="height: 100px;">
-                                </div>
-                                <% } %>
-                                    <!-- Footer Address Image -->
-                                    <% if (typeof footerImg !=='undefined' && footerImg) { %>
-                                        <div style="width: 100%; margin-top: 10px;">
-                                            <img src="<%= footerImg %>" style="width: 100%; display: block;">
+                                    <!-- ISO Mark (Big) -->
+                                    <% if (typeof isoMark !=='undefined' && isoMark) { %>
+                                        <div style="margin-top: 10px;">
+                                            <img src="<%= isoMark %>" alt="ISO" style="height: 100px;">
                                         </div>
                                         <% } %>
-                        </div>
-                    </footer>
+                                            <!-- Footer Address Image -->
+                                            <% if (typeof footerImg !=='undefined' && footerImg) { %>
+                                                <div style="width: 100%; margin-top: 10px;">
+                                                    <img src="<%= footerImg %>" style="width: 100%; display: block;">
+                                                </div>
+                                                <% } %>
+                                </div>
+                            </footer>
     </div>
 </body>
 
