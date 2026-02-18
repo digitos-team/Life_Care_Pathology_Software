@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
-import { Building2, Plus, Edit3, Trash2, X, Search } from 'lucide-react';
+import { Building2, Plus, Edit3, Trash2, X, Search, ChevronRight, FlaskConical } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import DeleteConfirmModal from '../../components/ui/DeleteConfirmModal';
 import {
@@ -8,14 +8,12 @@ import {
     createDepartment,
     updateDepartment,
     deleteDepartment,
-    searchDepartment
 } from '../../api/admin/department.api';
-
+import DepartmentTests from './DepartmentTests';
 
 const Departments = () => {
     const { showToast } = useToast();
 
-    // State
     const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -24,17 +22,13 @@ const Departments = () => {
     const [deleteConfirmId, setDeleteConfirmId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Form data
-    const [formData, setFormData] = useState({
-        name: '',
-        description: ''
-    });
+    // When set, renders DepartmentTests view instead of the list
+    const [selectedDepartment, setSelectedDepartment] = useState(null);
+
+    const [formData, setFormData] = useState({ name: '', description: '' });
     const [errors, setErrors] = useState({});
 
-    // Fetch departments
-    useEffect(() => {
-        fetchDepartments();
-    }, []);
+    useEffect(() => { fetchDepartments(); }, []);
 
     const fetchDepartments = async () => {
         try {
@@ -49,7 +43,6 @@ const Departments = () => {
         }
     };
 
-    // Form validation
     const validateForm = () => {
         const newErrors = {};
         if (!formData.name.trim()) newErrors.name = 'Department name is required';
@@ -57,11 +50,9 @@ const Departments = () => {
         return Object.keys(newErrors).length === 0;
     };
 
-    // Handle submit
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validateForm()) return;
-
         setSubmitting(true);
         try {
             if (editingDepartment) {
@@ -81,7 +72,6 @@ const Departments = () => {
         }
     };
 
-    // Reset form
     const resetForm = () => {
         setFormData({ name: '', description: '' });
         setEditingDepartment(null);
@@ -89,17 +79,12 @@ const Departments = () => {
         setShowForm(false);
     };
 
-    // Handle edit
     const handleEdit = (department) => {
         setEditingDepartment(department);
-        setFormData({
-            name: department.name,
-            description: department.description || ''
-        });
+        setFormData({ name: department.name, description: department.description || '' });
         setShowForm(true);
     };
 
-    // Handle delete
     const handleDelete = async () => {
         if (!deleteConfirmId) return;
         try {
@@ -113,18 +98,28 @@ const Departments = () => {
         }
     };
 
-    // Filtered departments
     const filteredDepartments = departments.filter(dept =>
         dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         dept.description?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // ── If a department is selected, show its tests view ──────────────────────
+    if (selectedDepartment) {
+        return (
+            <DepartmentTests
+                department={selectedDepartment}
+                onBack={() => setSelectedDepartment(null)}
+            />
+        );
+    }
+
+    // ── Departments list ───────────────────────────────────────────────────────
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
                     <h2 className="text-2xl font-black text-slate-800">Departments</h2>
-                    <p className="text-slate-600 mt-1">Manage pathology laboratory departments</p>
+                    <p className="text-slate-600 mt-1">Click a department to view its tests</p>
                 </div>
                 <button
                     onClick={() => setShowForm(true)}
@@ -166,42 +161,52 @@ const Departments = () => {
                         <table className="w-full text-sm">
                             <thead className="bg-gray-50 border-b">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Name
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Description
-                                    </th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Actions
-                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {filteredDepartments.map((dept) => (
-                                    <tr key={dept._id} className="hover:bg-gray-50">
+                                    <tr
+                                        key={dept._id}
+                                        className="hover:bg-indigo-50 cursor-pointer transition-colors group"
+                                        onClick={() => setSelectedDepartment(dept)}
+                                    >
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="font-medium text-gray-900">{dept.name}</div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-200 transition-colors">
+                                                    <FlaskConical size={15} className="text-indigo-600" />
+                                                </div>
+                                                <div>
+                                                    <div className="font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors">
+                                                        {dept.name}
+                                                    </div>
+                                                    <div className="text-xs text-gray-400 mt-0.5">Click to view tests</div>
+                                                </div>
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <div className="text-gray-500">{dept.description || '-'}</div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <div className="flex justify-end space-x-2">
+                                        <td className="px-6 py-4 text-gray-500">{dept.description || '-'}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                                            <div
+                                                className="flex justify-end items-center gap-1"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
                                                 <button
                                                     onClick={() => handleEdit(dept)}
-                                                    className="text-indigo-600 hover:text-indigo-900"
+                                                    className="text-indigo-600 hover:text-indigo-900 p-1.5 hover:bg-indigo-100 rounded-lg transition-colors"
                                                     title="Edit"
                                                 >
-                                                    <Edit3 size={16} />
+                                                    <Edit3 size={15} />
                                                 </button>
                                                 <button
                                                     onClick={() => setDeleteConfirmId(dept._id)}
-                                                    className="text-red-600 hover:text-red-900"
+                                                    className="text-red-600 hover:text-red-900 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
                                                     title="Delete"
                                                 >
-                                                    <Trash2 size={16} />
+                                                    <Trash2 size={15} />
                                                 </button>
+                                                <ChevronRight size={15} className="text-gray-300 ml-1 group-hover:text-indigo-400 transition-colors" />
                                             </div>
                                         </td>
                                     </tr>
@@ -212,7 +217,7 @@ const Departments = () => {
                 )}
             </Card>
 
-            {/* Form Modal */}
+            {/* Add / Edit Modal */}
             {showForm && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-lg max-w-md w-full">
@@ -226,9 +231,7 @@ const Departments = () => {
                         </div>
                         <form onSubmit={handleSubmit} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Department Name *
-                                </label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Department Name *</label>
                                 <input
                                     type="text"
                                     value={formData.name}
@@ -239,9 +242,7 @@ const Departments = () => {
                                 {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Description
-                                </label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                                 <textarea
                                     value={formData.description}
                                     onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}

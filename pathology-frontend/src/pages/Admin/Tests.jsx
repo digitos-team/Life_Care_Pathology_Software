@@ -42,6 +42,7 @@ const LabTestManagement = () => {
     // Filter state
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedDeptFilter, setSelectedDeptFilter] = useState('');
+    const [specSearch, setSpecSearch] = useState('');
 
     // Fetch on mount
     useEffect(() => {
@@ -578,32 +579,52 @@ const LabTestManagement = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                                     <Layers size={16} /> Assign Specialization (For Doctor Commission)
                                 </label>
+                                {/* Spec search */}
+                                <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-white border border-slate-200 rounded-lg">
+                                    <Search size={14} className="text-slate-400 flex-shrink-0" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search specializations..."
+                                        value={specSearch}
+                                        onChange={(e) => setSpecSearch(e.target.value)}
+                                        className="flex-1 text-xs bg-transparent border-none focus:ring-0 text-slate-600 placeholder:text-slate-300"
+                                    />
+                                    {specSearch && (
+                                        <button type="button" onClick={() => setSpecSearch('')} className="text-slate-400 hover:text-slate-600">
+                                            <X size={13} />
+                                        </button>
+                                    )}
+                                </div>
                                 <div className="flex flex-wrap gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl min-h-[60px]">
-                                    {Array.isArray(availableSpecializations) && availableSpecializations.map(spec => {
-                                        const isSelected = formData.specializationIds.includes(spec._id);
-                                        return (
-                                            <button
-                                                key={spec._id}
-                                                type="button"
-                                                onClick={() => {
-                                                    setFormData(prev => ({
-                                                        ...prev,
-                                                        specializationIds: isSelected
-                                                            ? prev.specializationIds.filter(id => id !== spec._id)
-                                                            : [...prev.specializationIds, spec._id]
-                                                    }));
-                                                }}
-                                                className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${isSelected
-                                                    ? 'bg-indigo-600 text-white shadow-md'
-                                                    : 'bg-white text-slate-500 border border-slate-300 hover:border-indigo-400'
-                                                    }`}
-                                            >
-                                                {spec.name}
-                                            </button>
-                                        );
-                                    })}
-                                    {availableSpecializations.length === 0 && (
-                                        <p className="text-xs text-slate-400 italic">No specializations defined</p>
+                                    {Array.isArray(availableSpecializations) && availableSpecializations
+                                        .filter(spec => spec.name.toLowerCase().includes(specSearch.toLowerCase()))
+                                        .map(spec => {
+                                            const isSelected = formData.specializationIds.includes(spec._id);
+                                            return (
+                                                <button
+                                                    key={spec._id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            specializationIds: isSelected
+                                                                ? prev.specializationIds.filter(id => id !== spec._id)
+                                                                : [...prev.specializationIds, spec._id]
+                                                        }));
+                                                    }}
+                                                    className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${isSelected
+                                                        ? 'bg-indigo-600 text-white shadow-md'
+                                                        : 'bg-white text-slate-500 border border-slate-300 hover:border-indigo-400'
+                                                        }`}
+                                                >
+                                                    {spec.name}
+                                                </button>
+                                            );
+                                        })}
+                                    {availableSpecializations.filter(s => s.name.toLowerCase().includes(specSearch.toLowerCase())).length === 0 && (
+                                        <p className="text-xs text-slate-400 italic">
+                                            {specSearch ? 'No specializations match your search' : 'No specializations defined'}
+                                        </p>
                                     )}
                                 </div>
                             </div>

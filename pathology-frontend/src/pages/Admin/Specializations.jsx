@@ -142,25 +142,25 @@ const Specializations = () => {
                 </button>
             </div>
 
-            {/* Statistics & Search */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 flex items-center bg-white rounded-3xl p-2 pl-6 shadow-sm border border-slate-100">
-                    <Search className="text-slate-400 mr-4" size={20} />
+            {/* Search & Stats */}
+            <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1 flex items-center bg-white rounded-xl px-5 py-3.5 shadow-sm border border-slate-200 gap-3">
+                    <Search className="text-slate-400 flex-shrink-0" size={18} />
                     <input
                         type="text"
                         placeholder="Search specializations..."
-                        className="flex-1 bg-transparent border-none focus:ring-0 text-slate-600 font-medium placeholder:text-slate-300"
+                        className="flex-1 bg-transparent border-none focus:ring-0 text-slate-600 font-medium placeholder:text-slate-300 text-sm"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-6 text-white shadow-xl flex items-center justify-between">
+                <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl px-6 py-4 text-white shadow-lg flex items-center justify-between gap-6 sm:min-w-[200px]">
                     <div>
-                        <p className="text-indigo-100 text-xs font-black uppercase tracking-widest mb-1">Total Categories</p>
+                        <p className="text-indigo-100 text-xs font-black uppercase tracking-widest mb-0.5">Total</p>
                         <h3 className="text-3xl font-black leading-none">{specializations.length}</h3>
                     </div>
-                    <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
-                        <Layers size={24} />
+                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                        <Layers size={20} />
                     </div>
                 </div>
             </div>
@@ -212,7 +212,7 @@ const Specializations = () => {
                                                 {spec.description || 'No description provided'}
                                             </td>
                                             <td className="px-8 py-5 whitespace-nowrap text-right">
-                                                <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex justify-end gap-3">
                                                     <button
                                                         onClick={() => handleEdit(spec)}
                                                         className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm"

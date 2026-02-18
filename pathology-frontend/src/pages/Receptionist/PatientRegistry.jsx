@@ -132,63 +132,202 @@ const PatientRegistry = () => {
                 </div>
             </div>
 
-            {/* Edit Patient Form */}
+            {/* Edit Patient Modal */}
             {editingPatient && (
-                <Card title="Edit Patient" icon={Edit3}>
-                    <form className="space-y-4" onSubmit={handleEditSubmit}>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <input
-                                placeholder="Full Name"
-                                value={editingPatient.fullName || ''}
-                                onChange={e => setEditingPatient({ ...editingPatient, fullName: e.target.value })}
-                                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-slate-50 placeholder:text-slate-400"
-                                required
-                            />
-                            <input
-                                placeholder="Phone Number"
-                                value={editingPatient.phone || ''}
-                                onChange={e => setEditingPatient({ ...editingPatient, phone: e.target.value })}
-                                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-slate-50 placeholder:text-slate-400"
-                                required
-                            />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <input
-                                placeholder="Age"
-                                type="number"
-                                value={editingPatient.age || ''}
-                                onChange={e => setEditingPatient({ ...editingPatient, age: e.target.value })}
-                                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-slate-50"
-                            />
-                            <select
-                                value={editingPatient.gender || ''}
-                                onChange={e => setEditingPatient({ ...editingPatient, gender: e.target.value })}
-                                className="px-3 py-2 rounded-lg border border-slate-200 font-medium text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-slate-50"
-                            >
-                                <option value="">Select Gender</option>
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div className="flex gap-3">
-                            <button
-                                type="submit"
-                                disabled={submitting}
-                                className="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:bg-indigo-700 shadow-sm transition-colors"
-                            >
-                                {submitting ? 'Saving...' : 'Update Patient'}
-                            </button>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden" style={{ backgroundColor: 'var(--card-bg, #fff)', maxHeight: '90vh', overflowY: 'auto' }}>
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border-primary, #e2e8f0)' }}>
+                            <div className="flex items-center gap-2">
+                                <Edit3 size={20} className="text-indigo-600" />
+                                <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary, #1e293b)' }}>Edit Patient</h3>
+                            </div>
                             <button
                                 type="button"
                                 onClick={() => setEditingPatient(null)}
-                                className="flex-1 py-2 px-4 bg-slate-100 text-slate-700 rounded-lg font-medium text-sm hover:bg-slate-200 transition-colors"
+                                className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-700"
+                                title="Close"
                             >
-                                Cancel
+                                <X size={20} />
                             </button>
                         </div>
-                    </form>
-                </Card>
+
+                        {/* Modal Body */}
+                        <form className="p-6 space-y-5" onSubmit={handleEditSubmit}>
+                            {/* Basic Info */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary, #1e293b)' }}>
+                                        Full Name *
+                                    </label>
+                                    <input
+                                        placeholder="Enter full name"
+                                        value={editingPatient.fullName || ''}
+                                        onChange={e => setEditingPatient({ ...editingPatient, fullName: e.target.value })}
+                                        className="w-full px-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                        style={{ backgroundColor: 'var(--input-bg, #f8fafc)', borderColor: 'var(--input-border, #e2e8f0)', color: 'var(--input-text, #1e293b)' }}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary, #1e293b)' }}>
+                                        Phone Number *
+                                    </label>
+                                    <input
+                                        placeholder="Enter 10-digit phone number"
+                                        type="tel"
+                                        maxLength="10"
+                                        value={editingPatient.phone || ''}
+                                        onChange={e => {
+                                            const value = e.target.value;
+                                            if (value === '' || /^\d+$/.test(value)) {
+                                                setEditingPatient({ ...editingPatient, phone: value });
+                                            }
+                                        }}
+                                        className="w-full px-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                        style={{ backgroundColor: 'var(--input-bg, #f8fafc)', borderColor: 'var(--input-border, #e2e8f0)', color: 'var(--input-text, #1e293b)' }}
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Email */}
+                            <div>
+                                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary, #1e293b)' }}>
+                                    Email (Optional)
+                                </label>
+                                <input
+                                    placeholder="Enter email address"
+                                    type="email"
+                                    value={editingPatient.email || ''}
+                                    onChange={e => setEditingPatient({ ...editingPatient, email: e.target.value })}
+                                    className="w-full px-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                    style={{ backgroundColor: 'var(--input-bg, #f8fafc)', borderColor: 'var(--input-border, #e2e8f0)', color: 'var(--input-text, #1e293b)' }}
+                                />
+                            </div>
+
+                            {/* Age & Gender */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary, #1e293b)' }}>
+                                        Age *
+                                    </label>
+                                    <input
+                                        placeholder="Enter age"
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={editingPatient.age || ''}
+                                        onChange={e => {
+                                            const value = e.target.value;
+                                            if (value === '' || /^\d+$/.test(value)) {
+                                                setEditingPatient({ ...editingPatient, age: value });
+                                            }
+                                        }}
+                                        className="w-full px-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                        style={{ backgroundColor: 'var(--input-bg, #f8fafc)', borderColor: 'var(--input-border, #e2e8f0)', color: 'var(--input-text, #1e293b)' }}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary, #1e293b)' }}>
+                                        Gender *
+                                    </label>
+                                    <select
+                                        value={editingPatient.gender || ''}
+                                        onChange={e => setEditingPatient({ ...editingPatient, gender: e.target.value })}
+                                        className="w-full px-4 py-3 rounded-xl border text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                        style={{ backgroundColor: 'var(--input-bg, #f8fafc)', borderColor: 'var(--input-border, #e2e8f0)', color: 'var(--input-text, #1e293b)' }}
+                                        required
+                                    >
+                                        <option value="">Select Gender</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Address Section */}
+                            <div className="border-t pt-4" style={{ borderColor: 'var(--border-primary, #e2e8f0)' }}>
+                                <h4 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary, #1e293b)' }}>Address</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary, #1e293b)' }}>Street</label>
+                                        <input
+                                            placeholder="Enter street address"
+                                            value={editingPatient.address?.street || ''}
+                                            onChange={e => setEditingPatient({
+                                                ...editingPatient,
+                                                address: { ...editingPatient.address, street: e.target.value }
+                                            })}
+                                            className="w-full px-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                            style={{ backgroundColor: 'var(--input-bg, #f8fafc)', borderColor: 'var(--input-border, #e2e8f0)', color: 'var(--input-text, #1e293b)' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary, #1e293b)' }}>City</label>
+                                        <input
+                                            placeholder="Enter city"
+                                            value={editingPatient.address?.city || ''}
+                                            onChange={e => setEditingPatient({
+                                                ...editingPatient,
+                                                address: { ...editingPatient.address, city: e.target.value }
+                                            })}
+                                            className="w-full px-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                            style={{ backgroundColor: 'var(--input-bg, #f8fafc)', borderColor: 'var(--input-border, #e2e8f0)', color: 'var(--input-text, #1e293b)' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary, #1e293b)' }}>State</label>
+                                        <input
+                                            placeholder="Enter state"
+                                            value={editingPatient.address?.state || ''}
+                                            onChange={e => setEditingPatient({
+                                                ...editingPatient,
+                                                address: { ...editingPatient.address, state: e.target.value }
+                                            })}
+                                            className="w-full px-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                            style={{ backgroundColor: 'var(--input-bg, #f8fafc)', borderColor: 'var(--input-border, #e2e8f0)', color: 'var(--input-text, #1e293b)' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary, #1e293b)' }}>Pincode</label>
+                                        <input
+                                            placeholder="Enter pincode"
+                                            value={editingPatient.address?.pincode || ''}
+                                            onChange={e => setEditingPatient({
+                                                ...editingPatient,
+                                                address: { ...editingPatient.address, pincode: e.target.value }
+                                            })}
+                                            className="w-full px-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                            style={{ backgroundColor: 'var(--input-bg, #f8fafc)', borderColor: 'var(--input-border, #e2e8f0)', color: 'var(--input-text, #1e293b)' }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    type="submit"
+                                    disabled={submitting}
+                                    className="flex-1 py-3 px-4 bg-indigo-600 text-white rounded-xl font-medium text-sm hover:bg-indigo-700 shadow-sm transition-colors disabled:opacity-60"
+                                >
+                                    {submitting ? 'Saving...' : 'Update Patient'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setEditingPatient(null)}
+                                    className="px-6 py-3 rounded-xl font-medium text-sm transition-colors"
+                                    style={{ backgroundColor: 'var(--button-secondary, #f1f5f9)', color: 'var(--text-primary, #1e293b)' }}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             )}
 
             {/* Filters */}
