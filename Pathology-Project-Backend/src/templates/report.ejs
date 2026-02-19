@@ -7,7 +7,6 @@
     <title>Pathology Report</title>
     <style>
         @page {
-            margin: 0;
             size: A4;
         }
 
@@ -27,8 +26,8 @@
 
         .report-container {
             padding: 30px 40px;
+            padding-bottom: 10px;
             position: relative;
-            min-height: 297mm;
             width: 210mm;
             margin: 0 auto;
         }
@@ -164,6 +163,7 @@
             text-transform: uppercase;
             position: relative;
             z-index: 1;
+            page-break-after: avoid;
         }
 
         /* Table Styles */
@@ -192,12 +192,17 @@
         .test-row {
             background-color: #f5f5f5;
             font-weight: bold;
+            page-break-inside: avoid;
         }
 
         .test-row td {
             padding: 7px 10px;
             border: 1px solid #333;
             font-size: 10px;
+        }
+
+        .param-row {
+            page-break-inside: avoid;
         }
 
         .param-row td {
@@ -212,140 +217,6 @@
 
         .text-center {
             text-align: center;
-        }
-
-        /* Footer Styles */
-        footer {
-            position: absolute;
-            bottom: 40px;
-            left: 40px;
-            right: 40px;
-            padding-top: 15px;
-            z-index: 1;
-        }
-
-        .signatures {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            padding: 0 50px;
-        }
-
-        .sig-box {
-            text-align: center;
-            width: 180px;
-        }
-
-        .sig-label {
-            font-size: 8px;
-            color: #666;
-            margin-bottom: 25px;
-            text-align: left;
-        }
-
-        .sig-name {
-            font-weight: bold;
-            font-size: 11px;
-            margin-bottom: 3px;
-        }
-
-        .sig-title {
-            color: #263238;
-            font-size: 9px;
-            line-height: 1.4;
-            font-weight: bold;
-        }
-
-        /* ISO Certifications */
-        .certifications {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 15px;
-            margin: 15px 0;
-        }
-
-        .cert-badge {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-            border: 2px solid #d4af37;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 7px;
-            text-align: center;
-            color: #000;
-            position: relative;
-        }
-
-        .cert-badge::after {
-            content: '';
-            position: absolute;
-            inset: 3px;
-            border-radius: 50%;
-            border: 1px solid #d4af37;
-        }
-
-        .iso-badge {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 45px;
-            height: 45px;
-        }
-
-        .reg-no {
-            text-align: center;
-            color: #1565c0;
-            font-weight: bold;
-            font-size: 11px;
-            margin: 10px 0;
-        }
-
-        .contact-info {
-            text-align: center;
-            font-size: 9px;
-            margin: 12px 0;
-            line-height: 1.6;
-        }
-
-        .contact-info strong {
-            color: #263238;
-        }
-
-        .disclaimer-section {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px 15px;
-            font-size: 8px;
-            margin: 15px 0;
-            color: #263238;
-        }
-
-        .disclaimer-item {
-            display: flex;
-            align-items: flex-start;
-        }
-
-        .bullet {
-            color: #00bcd4;
-            margin-right: 6px;
-            font-size: 10px;
-        }
-
-        .bottom-bar {
-            background-color: #fff;
-            color: #d32f2f;
-            text-align: center;
-            padding: 8px;
-            font-weight: bold;
-            font-size: 14px;
-            letter-spacing: 1px;
-            margin: 0 -40px -30px;
-            border-top: 1px solid #dee2e6;
         }
 
         /* Laboratory Test Report watermark on right */
@@ -535,52 +406,7 @@
                         </table>
                         <% }) %>
 
-                            <!-- Footer -->
-                            <footer>
-                                <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
-                                    <!-- Signatures and Stamp Row -->
-                                    <div
-                                        style="display: flex; justify-content: center; align-items: flex-end; width: 100%; margin-bottom: 20px;">
-                                        <!-- Left Signature -->
-                                        <div class="sig-box"
-                                            style="text-align: right; width: 180px; margin-right: 40px;">
-                                            <div class="sig-name">Mrs. Trupti Patil</div>
-                                            <div class="sig-title">M.SC. ADMLT. (Mum)</div>
-                                            <div class="sig-title">Lab. Technician</div>
-                                        </div>
-
-                                        <!-- Center Stamp -->
-                                        <% if (typeof footerStamp !=='undefined' && footerStamp) { %>
-                                            <div style="display: flex; justify-content: center;">
-                                                <img src="<%= footerStamp %>" style="height: 80px;">
-                                            </div>
-                                            <% } %>
-
-                                                <!-- Right Signature -->
-                                                <div class="sig-box"
-                                                    style="text-align: left; width: 180px; margin-left: 40px;">
-                                                    <div class="sig-name">Dr. A. Muloy</div>
-                                                    <div class="sig-title">(MD. (Pathology))</div>
-                                                    <div class="sig-title">Reg. No 2019/03/11113</div>
-                                                </div>
-                                    </div>
-
-
-
-                                    <!-- ISO Mark (Big) -->
-                                    <% if (typeof isoMark !=='undefined' && isoMark) { %>
-                                        <div style="margin-top: 10px;">
-                                            <img src="<%= isoMark %>" alt="ISO" style="height: 100px;">
-                                        </div>
-                                        <% } %>
-                                            <!-- Footer Address Image -->
-                                            <% if (typeof footerImg !=='undefined' && footerImg) { %>
-                                                <div style="width: 100%; margin-top: 10px;">
-                                                    <img src="<%= footerImg %>" style="width: 100%; display: block;">
-                                                </div>
-                                                <% } %>
-                                </div>
-                            </footer>
+                            <!-- Footer is rendered by Puppeteer's displayHeaderFooter -->
     </div>
 </body>
 

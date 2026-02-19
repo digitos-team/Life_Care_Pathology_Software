@@ -46,7 +46,6 @@ export const generatePDFFromTemplate = async (templateName, data, options = {}) 
         const pdfOptions = {
             format: options.format || "A4",
             printBackground: true,
-            ...options,
         };
 
         // If headerTemplate and footerTemplate are provided, use displayHeaderFooter

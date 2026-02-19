@@ -291,15 +291,24 @@ export const downloadTestReportPDFController = asyncHandler(
     const headerImgBase64 = getBase64Image(HEADER_IMG_PATH);
     const footerImgBase64 = getBase64Image(FOOTER_IMG_PATH);
 
-    // Generate PDF using Puppeteer
+    // Build the footer template for Puppeteer's displayHeaderFooter
+    const footerTemplate = generateFooterTemplate({
+      footerStamp: footerStampBase64,
+      isoMark: isoMarkBase64,
+      footerImg: footerImgBase64
+    });
+
+    // Generate PDF using Puppeteer with displayHeaderFooter
     const pdfBuffer = await generatePDFFromTemplate("report", {
       order,
       lab,
       logo: logoBase64,
-      isoMark: isoMarkBase64,
-      footerStamp: footerStampBase64,
       headerImg: headerImgBase64,
-      footerImg: footerImgBase64
+    }, {
+      headerTemplate: '<div></div>',
+      footerTemplate: footerTemplate,
+      marginTop: '10mm',
+      marginBottom: '290px',
     });
 
     // Save to file
