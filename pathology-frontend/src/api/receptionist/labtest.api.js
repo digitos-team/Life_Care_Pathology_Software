@@ -33,3 +33,19 @@ export const getLabTestById = async (id) => {
     }
 };
 
+// Get tests grouped by department
+export const getTestsGroupedByDepartment = async () => {
+    try {
+        const response = await axiosClient.get('/labtest/grouped-by-department');
+        const apiResponse = response.data;
+        if (apiResponse && apiResponse.success) {
+            return apiResponse.data || [];
+        } else {
+            throw new Error(apiResponse?.message || 'Failed to fetch grouped tests');
+        }
+    } catch (error) {
+        console.error('Error fetching grouped tests:', error);
+        throw error;
+    }
+};
+
