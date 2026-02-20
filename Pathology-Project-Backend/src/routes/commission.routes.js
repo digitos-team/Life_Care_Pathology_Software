@@ -3,6 +3,7 @@ import {
     getDoctorMonthlyCommissionController,
     getDoctorCommissionReportController,
     downloadDoctorCommissionReportController,
+    downloadDoctorCommissionCSVController,
     getAllCommissionsController,
     getAllDoctorsCommissionSummary
 } from "../controllers/commission.controller.js";
@@ -26,5 +27,8 @@ router.get("/doctor/:doctorId/report", getDoctorCommissionReportController);
 
 // Download Doctor Commission PDF
 router.get("/doctor/:doctorId/report/pdf", downloadDoctorCommissionReportController);
+
+// Download Doctor Commission CSV
+router.get("/doctor/:doctorId/report/csv", downloadDoctorCommissionCSVController);
 
 export default router;

@@ -1568,128 +1568,246 @@ export const generateDoctorCommissionReportPDF = (
   startDate,
   endDate,
 ) => {
-  const accentColor = "#2c3e50";
-  const borderColor = "#cccccc";
+  /* ═══════════════════════════════════════════════
+   *  Color Palette
+   * ═══════════════════════════════════════════════ */
+  const primary = "#1565c0";   // Deep blue
+  const primaryDk = "#0d47a1";   // Darker blue
+  const accent = "#e8eaf6";   // Light indigo bg
+  const textDark = "#1a1a2e";
+  const textMuted = "#607d8b";
+  const success = "#2e7d32";   // Green for money
+  const white = "#ffffff";
+  const rowAlt = "#f8f9ff";   // Alternating row bg
+  const borderLt = "#c5cae9";
 
-  // 1. Title
-  doc
-    .fontSize(18)
-    .fillColor(accentColor)
-    .text("Doctor Commission Report", { align: "center" });
-  doc.moveDown(0.5);
+  const pageW = doc.page.width;
+  const margin = 40;
+  const contentW = pageW - margin * 2;
 
-  // 2. Metadata
-  doc.fontSize(10).fillColor("black").font("Helvetica-Bold");
-  doc.text(`Doctor Name: ${doctorName}`, { align: "center" });
+  /* ─── Helper: rounded rect ─── */
+  const roundRect = (x, y, w, h, r, fill, stroke) => {
+    doc.roundedRect(x, y, w, h, r);
+    if (fill) doc.fill(fill);
+    if (stroke) { doc.roundedRect(x, y, w, h, r); doc.strokeColor(stroke).lineWidth(0.5).stroke(); }
+  };
 
-  if (startDate && endDate) {
-    doc.text(
-      `Period: ${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`,
-      { align: "center" },
-    );
-  } else {
-    doc.text(`Period: All Time`, { align: "center" });
-  }
+  /* ═══════════════════════════════════════════════
+   *  1. HEADER — Title bar
+   * ═══════════════════════════════════════════════ */
+  // Blue header banner
+  doc.rect(0, 0, pageW, 80).fill(primary);
 
-  doc.moveDown();
-  doc
-    .lineWidth(0.5)
-    .strokeColor(borderColor)
-    .moveTo(30, doc.y)
-    .lineTo(570, doc.y)
-    .stroke();
-  doc.moveDown();
+  doc.font("Helvetica-Bold").fontSize(22).fillColor(white);
+  doc.text("Doctor Commission Report", margin, 20, { width: contentW, align: "center" });
 
-  // 3. Table Header
-  const tableTop = doc.y;
-  const colX = { date: 30, patient: 110, tests: 230, bill: 400, comm: 490 };
+  // Period subtitle
+  const periodText = (startDate && endDate)
+    ? `${new Date(startDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}  —  ${new Date(endDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`
+    : "All Time";
+  doc.font("Helvetica").fontSize(10).fillColor("#bbdefb");
+  doc.text(periodText, margin, 50, { width: contentW, align: "center" });
 
-  doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
-  doc.text("Date", colX.date, tableTop);
-  doc.text("Patient Name", colX.patient, tableTop);
-  doc.text("Tests", colX.tests, tableTop);
-  doc.text("Bill Amt", colX.bill, tableTop, { width: 60, align: "right" });
-  doc.text("Comm Amt", colX.comm, tableTop, { width: 60, align: "right" });
+  /* ═══════════════════════════════════════════════
+   *  2. DOCTOR INFO CARD
+   * ═══════════════════════════════════════════════ */
+  const cardY = 95;
+  roundRect(margin, cardY, contentW, 50, 8, accent, borderLt);
 
-  doc.moveDown(0.5);
-  doc.lineWidth(0.5).moveTo(30, doc.y).lineTo(570, doc.y).stroke();
-  doc.moveDown(0.5);
+  // Blue left accent bar
+  doc.rect(margin, cardY, 5, 50).fill(primary);
 
-  let currentY = doc.y;
+  doc.font("Helvetica-Bold").fontSize(14).fillColor(textDark);
+  doc.text(doctorName, margin + 20, cardY + 10, { width: contentW - 40 });
+
+  doc.font("Helvetica").fontSize(9).fillColor(textMuted);
+  doc.text("Referring Doctor", margin + 20, cardY + 30, { width: 200 });
+
+  // Generated date (right side)
+  doc.font("Helvetica").fontSize(8).fillColor(textMuted);
+  doc.text(
+    `Generated: ${new Date().toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })}`,
+    margin, cardY + 17,
+    { width: contentW - 20, align: "right" }
+  );
+
+  /* ═══════════════════════════════════════════════
+   *  3. SUMMARY STATISTICS BOXES
+   * ═══════════════════════════════════════════════ */
+  // Calculate totals
   let totalCommission = 0;
-
-  // 4. Data Rows
-  doc.font("Helvetica").fontSize(9);
-
+  let totalBillAmount = 0;
   data.forEach((item) => {
+    totalCommission += item.commissionAmount || 0;
+    totalBillAmount += item.totalBillAmount || 0;
+  });
+  const totalBills = data.length;
+
+  const statsY = 160;
+  const boxW = (contentW - 20) / 3;  // 3 boxes with gaps
+
+  // Box 1: Total Bills
+  roundRect(margin, statsY, boxW, 60, 6, white, borderLt);
+  doc.font("Helvetica").fontSize(8).fillColor(textMuted);
+  doc.text("TOTAL BILLS", margin + 12, statsY + 10, { width: boxW - 24 });
+  doc.font("Helvetica-Bold").fontSize(20).fillColor(primary);
+  doc.text(`${totalBills}`, margin + 12, statsY + 26, { width: boxW - 24 });
+
+  // Box 2: Total Business
+  const box2X = margin + boxW + 10;
+  roundRect(box2X, statsY, boxW, 60, 6, white, borderLt);
+  doc.font("Helvetica").fontSize(8).fillColor(textMuted);
+  doc.text("TOTAL BUSINESS", box2X + 12, statsY + 10, { width: boxW - 24 });
+  doc.font("Helvetica-Bold").fontSize(20).fillColor(textDark);
+  doc.text(`Rs.${totalBillAmount.toLocaleString("en-IN")}`, box2X + 12, statsY + 26, { width: boxW - 24 });
+
+  // Box 3: Total Commission
+  const box3X = margin + (boxW + 10) * 2;
+  roundRect(box3X, statsY, boxW, 60, 6, "#e8f5e9", "#a5d6a7");
+  doc.font("Helvetica").fontSize(8).fillColor(success);
+  doc.text("TOTAL COMMISSION", box3X + 12, statsY + 10, { width: boxW - 24 });
+  doc.font("Helvetica-Bold").fontSize(20).fillColor(success);
+  doc.text(`Rs.${totalCommission.toLocaleString("en-IN")}`, box3X + 12, statsY + 26, { width: boxW - 24 });
+
+  /* ═══════════════════════════════════════════════
+   *  4. DATA TABLE
+   * ═══════════════════════════════════════════════ */
+  const tableStartY = 240;
+  const tableRight = margin + contentW; // right edge of table
+  const colW = {
+    sno: 25, date: 65, patient: 110, tests: 145, bill: 65, comm: 65
+  };
+  // Calculate colX so that bill + comm end exactly at tableRight
+  const colX = {
+    sno: margin,
+    date: margin + colW.sno,
+    patient: margin + colW.sno + colW.date,
+    tests: margin + colW.sno + colW.date + colW.patient,
+    bill: tableRight - colW.comm - colW.bill,
+    comm: tableRight - colW.comm,
+  };
+  const rowH = 22;
+  const headerH = 28;
+
+  /* Helper to draw the table header */
+  const drawTableHeader = (y) => {
+    // Blue header background
+    doc.rect(margin, y, contentW, headerH).fill(primary);
+
+    doc.font("Helvetica-Bold").fontSize(8).fillColor(white);
+    const hY = y + 9;
+    doc.text("#", colX.sno, hY, { width: colW.sno, align: "center" });
+    doc.text("DATE", colX.date, hY, { width: colW.date });
+    doc.text("PATIENT NAME", colX.patient, hY, { width: colW.patient });
+    doc.text("TESTS", colX.tests, hY, { width: colW.tests });
+    doc.text("BILL AMT", colX.bill, hY, { width: colW.bill, align: "right" });
+    doc.text("COMMISSION", colX.comm, hY, { width: colW.comm, align: "right" });
+
+    return y + headerH;
+  };
+
+  let currentY = drawTableHeader(tableStartY);
+  let rowIndex = 0;
+
+  /* ─── Render each data row ─── */
+  data.forEach((item, idx) => {
     const patientName = item.patientName || "N/A";
     const testList = item.testOrder || "N/A";
 
-    // Calculate necessary height for this row based on the longest column (usually tests)
-    const rowHeight = Math.max(
-      doc.heightOfString(patientName, { width: 110 }),
-      doc.heightOfString(testList, { width: 160 }),
-      20 // Minimum height
-    ) + 10;
+    // Calculate dynamic row height
+    const testTextH = doc.font("Helvetica").fontSize(8).heightOfString(testList, { width: colW.tests - 4 });
+    const patientTextH = doc.heightOfString(patientName, { width: colW.patient - 4 });
+    const dynamicH = Math.max(testTextH, patientTextH, 14) + 10;
 
-    // Check page break
-    if (currentY + rowHeight > doc.page.height - 100) {
+    // Page break check
+    if (currentY + dynamicH > doc.page.height - 80) {
       doc.addPage();
-      currentY = 50;
-      // Re-draw header
-      doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
-      doc.text("Date", colX.date, currentY);
-      doc.text("Patient Name", colX.patient, currentY);
-      doc.text("Tests", colX.tests, currentY);
-      doc.text("Bill Amt", colX.bill, currentY, { width: 60, align: "right" });
-      doc.text("Comm Amt", colX.comm, currentY, { width: 60, align: "right" });
-      currentY += 20;
-      doc.font("Helvetica").fontSize(9);
+      currentY = 40;
+      currentY = drawTableHeader(currentY);
+      rowIndex = 0;
     }
 
-    doc.text(new Date(item.date).toLocaleDateString(), colX.date, currentY);
-    doc.text(patientName, colX.patient, currentY, { width: 110 });
-    doc.text(testList, colX.tests, currentY, { width: 160 });
-    doc.text((item.totalBillAmount || 0).toFixed(2), colX.bill, currentY, {
-      width: 60,
-      align: "right",
-    });
-    doc.text((item.commissionAmount || 0).toFixed(2), colX.comm, currentY, {
-      width: 60,
-      align: "right",
-    });
+    // Alternating row background
+    const bgColor = rowIndex % 2 === 0 ? white : rowAlt;
+    doc.rect(margin, currentY, contentW, dynamicH).fill(bgColor);
 
-    totalCommission += item.commissionAmount || 0;
-    currentY += rowHeight;
-
-    doc
-      .lineWidth(0.1)
-      .strokeColor("#eeeeee")
-      .moveTo(30, currentY - 5)
-      .lineTo(570, currentY - 5)
+    // Row border (bottom)
+    doc.lineWidth(0.3).strokeColor(borderLt)
+      .moveTo(margin, currentY + dynamicH)
+      .lineTo(margin + contentW, currentY + dynamicH)
       .stroke();
+
+    const textY = currentY + 5;
+    doc.font("Helvetica").fontSize(8).fillColor(textMuted);
+    doc.text(`${idx + 1}`, colX.sno, textY, { width: colW.sno, align: "center" });
+
+    doc.fillColor(textDark);
+    doc.text(
+      new Date(item.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" }),
+      colX.date, textY, { width: colW.date }
+    );
+
+    doc.font("Helvetica-Bold").fontSize(8).fillColor(textDark);
+    doc.text(patientName, colX.patient, textY, { width: colW.patient });
+
+    doc.font("Helvetica").fontSize(7.5).fillColor(textMuted);
+    doc.text(testList, colX.tests, textY, { width: colW.tests });
+
+    doc.font("Helvetica").fontSize(8).fillColor(textDark);
+    doc.text(`Rs.${(item.totalBillAmount || 0).toLocaleString("en-IN")}`, colX.bill, textY, {
+      width: colW.bill, align: "right"
+    });
+
+    doc.font("Helvetica-Bold").fontSize(8).fillColor(success);
+    doc.text(`Rs.${(item.commissionAmount || 0).toLocaleString("en-IN")}`, colX.comm, textY, {
+      width: colW.comm, align: "right"
+    });
+
+    currentY += dynamicH;
+    rowIndex++;
   });
 
-  // 5. Total
-  doc.moveDown();
-  doc.font("Helvetica-Bold").fontSize(12).fillColor(accentColor);
-  doc.text(`Total Commission: INR ${totalCommission.toFixed(2)}`, {
-    align: "right",
+  /* ═══════════════════════════════════════════════
+   *  5. TOTAL ROW — Highlighted
+   * ═══════════════════════════════════════════════ */
+  const totalRowH = 32;
+  if (currentY + totalRowH > doc.page.height - 80) {
+    doc.addPage();
+    currentY = 40;
+  }
+
+  // Green total row background
+  roundRect(margin, currentY + 5, contentW, totalRowH, 6, "#e8f5e9");
+
+  doc.font("Helvetica-Bold").fontSize(10).fillColor(textDark);
+  doc.text("TOTAL", margin + 15, currentY + 15);
+
+  doc.font("Helvetica-Bold").fontSize(10).fillColor(textDark);
+  doc.text(`Rs.${totalBillAmount.toLocaleString("en-IN")}`, colX.bill, currentY + 15, {
+    width: colW.bill, align: "right"
   });
 
-  // 6. Footer section
-  doc.fillColor("black").font("Helvetica").fontSize(8);
+  doc.font("Helvetica-Bold").fontSize(11).fillColor(success);
+  doc.text(`Rs.${totalCommission.toLocaleString("en-IN")}`, colX.comm, currentY + 14, {
+    width: colW.comm, align: "right"
+  });
 
-  // Add page numbers
+  /* ═══════════════════════════════════════════════
+   *  6. FOOTER — Page numbers & branding
+   * ═══════════════════════════════════════════════ */
   const range = doc.bufferedPageRange();
   for (let i = 0; i < range.count; i++) {
     doc.switchToPage(i);
-    const footerY = doc.page.height - 50;
-    doc.text(`Page ${i + 1} of ${range.count}`, 30, footerY, {
-      align: "center",
-    });
-    doc.text(`Generated on ${new Date().toLocaleString()}`, 30, footerY + 10, {
-      align: "center",
-    });
+    const footerY = doc.page.height - 40;
+
+    // Subtle line
+    doc.lineWidth(0.5).strokeColor(borderLt)
+      .moveTo(margin, footerY - 5)
+      .lineTo(margin + contentW, footerY - 5)
+      .stroke();
+
+    doc.font("Helvetica").fontSize(7).fillColor(textMuted);
+    doc.text("Life Care Diagnostic  •  Doctor Commission Report", margin, footerY, { width: contentW / 2 });
+    doc.text(`Page ${i + 1} of ${range.count}`, margin, footerY, { width: contentW, align: "right" });
   }
 };

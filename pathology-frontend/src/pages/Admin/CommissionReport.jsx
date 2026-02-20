@@ -15,7 +15,8 @@ import {
 import {
     getCommissionSummary,
     getDoctorCommissionReport,
-    downloadDoctorCommissionReport
+    downloadDoctorCommissionReport,
+    downloadDoctorCommissionCSV
 } from '../../api/admin/commission.api';
 import { getDoctors } from '../../api/admin/doctors.api';
 import { useToast } from '../../contexts/ToastContext';
@@ -96,6 +97,22 @@ const CommissionReport = () => {
             link.remove();
         } catch (error) {
             showToast('Failed to download PDF', 'error');
+        }
+    };
+
+    const handleDownloadCSV = async (doctorId, doctorName) => {
+        try {
+            showToast('Generating CSV...', 'info');
+            const blob = await downloadDoctorCommissionCSV(doctorId, dateRange);
+            const url = window.URL.createObjectURL(new Blob([blob]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Commission_Report_${doctorName}_${dateRange.startDate}_to_${dateRange.endDate}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            showToast('Failed to download CSV', 'error');
         }
     };
 
@@ -254,6 +271,13 @@ const CommissionReport = () => {
                                                             >
                                                                 View Report <ChevronRight size={14} />
                                                             </button>
+                                                            <button
+                                                                onClick={() => handleDownloadCSV(item.doctorId, item.doctorName)}
+                                                                className="px-3 py-2 bg-emerald-50 text-emerald-600 text-xs font-black rounded-xl hover:bg-emerald-600 hover:text-white transition-all flex items-center gap-1"
+                                                                title="Download CSV"
+                                                            >
+                                                                <FileText size={14} /> CSV
+                                                            </button>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -288,9 +312,15 @@ const CommissionReport = () => {
                                 </div>
                                 <button
                                     onClick={() => handleDownloadPDF(selectedDoctor.doctorId, selectedDoctor.doctorName)}
-                                    className="w-full mt-8 py-4 bg-white text-indigo-600 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-50 transition-all shadow-lg active:scale-95"
+                                    className="w-full mt-6 py-4 bg-white text-indigo-600 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-50 transition-all shadow-lg active:scale-95"
                                 >
                                     <Download size={16} /> Download PDF
+                                </button>
+                                <button
+                                    onClick={() => handleDownloadCSV(selectedDoctor.doctorId, selectedDoctor.doctorName)}
+                                    className="w-full mt-3 py-4 bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all shadow-lg active:scale-95"
+                                >
+                                    <FileText size={16} /> Download CSV
                                 </button>
                             </div>
                         </div>
