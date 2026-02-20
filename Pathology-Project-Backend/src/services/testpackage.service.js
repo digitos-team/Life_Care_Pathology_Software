@@ -36,7 +36,12 @@ export const createTestPackageService = async (packageData) => {
 /**
  * Get all test packages for a lab
  */
-export const getTestPackagesService = async (labId, filters = {}) => {
+export const getTestPackagesService = async (labId, filters = {}, page = 1, limit = 10) => {
+    page = parseInt(page) || 1;
+    limit = parseInt(limit) || 10;
+    limit = limit > 10 ? 10 : limit;
+    const skip = (page - 1) * limit;
+
     const { isActive, departmentId, search } = filters;
 
     const query = { labId };
@@ -56,12 +61,25 @@ export const getTestPackagesService = async (labId, filters = {}) => {
         ];
     }
 
+    const totalRecords = await TestPackage.countDocuments(query);
     const packages = await TestPackage.find(query)
         .populate("includedTests.testId", "testName price")
         .populate("departmentId", "name")
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
 
-    return packages;
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    return {
+        data: packages,
+        totalRecords,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+    };
 };
 
 /**

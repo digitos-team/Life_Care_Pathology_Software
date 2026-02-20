@@ -32,7 +32,7 @@ export const createTestPackage = asyncHandler(async (req, res) => {
  */
 export const getTestPackages = asyncHandler(async (req, res) => {
     const { labId } = req.user;
-    const { isActive, departmentId, search } = req.query;
+    const { isActive, departmentId, search, page, limit } = req.query;
 
     const filters = {
         isActive: isActive !== undefined ? isActive === "true" : undefined,
@@ -40,7 +40,7 @@ export const getTestPackages = asyncHandler(async (req, res) => {
         search,
     };
 
-    const packages = await getTestPackagesService(labId, filters);
+    const packages = await getTestPackagesService(labId, filters, page, limit);
 
     res.status(200).json(
         new ApiResponse(200, packages, "Test packages retrieved successfully")

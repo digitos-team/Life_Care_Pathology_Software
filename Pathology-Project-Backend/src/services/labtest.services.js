@@ -45,7 +45,12 @@ class TestService {
     return test;
   }
 
-  async getAllTests(labId, filters = {}) {
+  async getAllTests(labId, filters = {}, page = 1, limit = 10) {
+
+    page = parseInt(page) || 1;
+    limit = parseInt(limit) || 10;
+    limit = limit > 10 ? 10 : limit;
+    const skip = (page - 1) * limit;
     const { departmentId, search } = filters;
 
     // Build the query
@@ -59,10 +64,14 @@ class TestService {
       query.testName = { $regex: search, $options: "i" };
     }
 
+    const totalRecords = await Test.countDocuments(query)
     const tests = await Test.find(query)
       .populate("departmentId", "name")
       .sort({ testName: 1 })
+      .skip(skip)
+      .limit(limit)
       .lean();
+
 
     // Fetch all specializations for these tests
     const testIds = tests.map(t => t._id);
@@ -79,10 +88,22 @@ class TestService {
     }, {});
 
     // Attach to tests
-    return tests.map(t => ({
+    const data = tests.map(t => ({
       ...t,
       specializations: specsByTest[t._id.toString()] || []
     }));
+
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    return {
+      data,
+      totalRecords,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    }
   }
 
   /**

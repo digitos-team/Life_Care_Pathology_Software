@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Card from '../../components/ui/Card';
-import { Microscope, Plus, Edit3, Trash2, X, AlertTriangle, Building2, Layers, Search, Filter } from 'lucide-react';
+import { Microscope, Plus, Edit3, Trash2, X, AlertTriangle, Building2, Layers, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getLabTests, createLabTest, updateLabTest, deleteLabTest } from '../../api/admin/labTest.api';
 import { getAllSpecializations } from '../../api/admin/specialization.api';
 import { getDepartments } from '../../api/admin/department.api';
@@ -44,12 +44,25 @@ const LabTestManagement = () => {
     const [selectedDeptFilter, setSelectedDeptFilter] = useState('');
     const [specSearch, setSpecSearch] = useState('');
 
+    // Pagination state
+    const [page, setPage] = useState(1);
+    const [limit] = useState(10);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalRecords, setTotalRecords] = useState(0);
+
+    // Debounce ref for search
+    const searchDebounceRef = useRef(null);
+
     // Fetch on mount
     useEffect(() => {
-        fetchTests();
         fetchSpecializations();
         fetchDepartments();
     }, []);
+
+    // Re-fetch whenever page, departmentId changes
+    useEffect(() => {
+        fetchTests(page, searchTerm, selectedDeptFilter);
+    }, [page, selectedDeptFilter]);
 
     const fetchSpecializations = async () => {
         try {
@@ -72,56 +85,65 @@ const LabTestManagement = () => {
         }
     };
 
-    const fetchTests = async () => {
+    const fetchTests = useCallback(async (currentPage = page, search = searchTerm, deptId = selectedDeptFilter) => {
         try {
             setListLoading(true);
-            const response = await getLabTests();
-            setTests(response.data || response.tests || []);
+            const params = { page: currentPage, limit };
+            if (search?.trim()) params.search = search.trim();
+            if (deptId) params.departmentId = deptId;
+
+            const response = await getLabTests(params);
+            // Handle both paginated { data, totalRecords, totalPages } and legacy array response
+            const payload = response.data;
+            if (payload && typeof payload === 'object' && 'data' in payload) {
+                setTests(payload.data || []);
+                setTotalRecords(payload.totalRecords || 0);
+                setTotalPages(payload.totalPages || 1);
+            } else {
+                // fallback for non-paginated legacy response
+                setTests(Array.isArray(payload) ? payload : []);
+            }
         } catch (error) {
             showToast('Failed to fetch lab tests', 'error');
             console.error('Fetch tests error:', error);
         } finally {
             setListLoading(false);
         }
+    }, [limit]);
+
+    // Search with debounce — triggers fetch after 400ms pause
+    const handleSearchChange = (e) => {
+        const value = e.target.value;
+        setSearchTerm(value);
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = setTimeout(() => {
+            setPage(1);
+            fetchTests(1, value, selectedDeptFilter);
+        }, 400);
     };
 
-    // Client-side filtered tests
-    const filteredTests = useMemo(() => {
-        let result = tests;
+    // Department filter change
+    const handleDeptChange = (e) => {
+        setSelectedDeptFilter(e.target.value);
+        setPage(1); // reset to page 1 — useEffect will trigger fetchTests
+    };
 
-        // Filter by department
-        if (selectedDeptFilter) {
-            result = result.filter(t => {
-                const deptId = t.departmentId?._id || t.departmentId;
-                return deptId === selectedDeptFilter;
-            });
-        }
+    // Clear all filters
+    const handleClearFilters = () => {
+        setSearchTerm('');
+        setSelectedDeptFilter('');
+        setPage(1);
+        fetchTests(1, '', '');
+    };
 
-        // Filter by search term
-        if (searchTerm.trim()) {
-            const term = searchTerm.toLowerCase();
-            result = result.filter(t =>
-                t.testName?.toLowerCase().includes(term) ||
-                t.departmentId?.name?.toLowerCase().includes(term)
-            );
-        }
+    // Pagination helpers
+    const goToPage = (newPage) => {
+        if (newPage < 1 || newPage > totalPages) return;
+        setPage(newPage);
+    };
 
-        return result;
-    }, [tests, selectedDeptFilter, searchTerm]);
-
-    // Department test counts for the filter dropdown
-    const deptTestCounts = useMemo(() => {
-        const counts = {};
-        tests.forEach(t => {
-            const deptId = t.departmentId?._id || t.departmentId;
-            const deptName = t.departmentId?.name || 'Unknown';
-            if (deptId) {
-                if (!counts[deptId]) counts[deptId] = { name: deptName, count: 0 };
-                counts[deptId].count++;
-            }
-        });
-        return counts;
-    }, [tests]);
+    // Alias for template: server-side result is already filtered
+    const filteredTests = tests;
 
     // Form validation
     const validateForm = () => {
@@ -452,7 +474,7 @@ const LabTestManagement = () => {
                         type="text"
                         placeholder="Search tests by name..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={handleSearchChange}
                         className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
                     />
                 </div>
@@ -460,20 +482,20 @@ const LabTestManagement = () => {
                     <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <select
                         value={selectedDeptFilter}
-                        onChange={(e) => setSelectedDeptFilter(e.target.value)}
+                        onChange={handleDeptChange}
                         className="pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm font-medium min-w-[220px] appearance-none cursor-pointer"
                     >
-                        <option value="">All Departments ({tests.length})</option>
+                        <option value="">All Departments ({totalRecords} total)</option>
                         {departments.map(dept => (
                             <option key={dept._id} value={dept._id}>
-                                {dept.name} ({deptTestCounts[dept._id]?.count || 0})
+                                {dept.name}
                             </option>
                         ))}
                     </select>
                 </div>
                 {(searchTerm || selectedDeptFilter) && (
                     <button
-                        onClick={() => { setSearchTerm(''); setSelectedDeptFilter(''); }}
+                        onClick={handleClearFilters}
                         className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors text-sm font-medium flex items-center gap-1"
                     >
                         <X size={14} />
@@ -485,7 +507,7 @@ const LabTestManagement = () => {
             {/* Active filter indicator */}
             {(searchTerm || selectedDeptFilter) && (
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    Showing {filteredTests.length} of {tests.length} tests
+                    Showing {filteredTests.length} of {totalRecords} tests
                     {selectedDeptFilter && departments.find(d => d._id === selectedDeptFilter) && (
                         <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full normal-case tracking-normal">
                             {departments.find(d => d._id === selectedDeptFilter)?.name}
@@ -1105,6 +1127,62 @@ const LabTestManagement = () => {
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
+                                <p className="text-sm text-slate-500">
+                                    Page <span className="font-semibold text-slate-700">{page}</span> of{' '}
+                                    <span className="font-semibold text-slate-700">{totalPages}</span>
+                                    {' '}— {totalRecords} total tests
+                                </p>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => goToPage(page - 1)}
+                                        disabled={page <= 1}
+                                        className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                        title="Previous page"
+                                    >
+                                        <ChevronLeft size={16} />
+                                    </button>
+
+                                    {/* Page number pills */}
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                        .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                                        .reduce((acc, p, idx, arr) => {
+                                            if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...');
+                                            acc.push(p);
+                                            return acc;
+                                        }, [])
+                                        .map((item, idx) =>
+                                            item === '...' ? (
+                                                <span key={`ellipsis-${idx}`} className="px-2 text-slate-400 text-sm">…</span>
+                                            ) : (
+                                                <button
+                                                    key={item}
+                                                    onClick={() => goToPage(item)}
+                                                    className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${item === page
+                                                            ? 'bg-indigo-600 text-white shadow-sm'
+                                                            : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                                                        }`}
+                                                >
+                                                    {item}
+                                                </button>
+                                            )
+                                        )
+                                    }
+
+                                    <button
+                                        onClick={() => goToPage(page + 1)}
+                                        disabled={page >= totalPages}
+                                        className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                        title="Next page"
+                                    >
+                                        <ChevronRight size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </>
                 )}
             </Card>

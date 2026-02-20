@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Card from '../../components/ui/Card';
-import { Package, Plus, Edit3, Trash2, X, AlertTriangle, Search } from 'lucide-react';
+import { Package, Plus, Edit3, Trash2, X, AlertTriangle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getTestPackages, createTestPackage, updateTestPackage, deleteTestPackage } from '../../api/admin/testPackage.api';
 import { getLabTests } from '../../api/admin/labTest.api';
 import { getDepartments } from '../../api/admin/department.api';
@@ -21,6 +21,7 @@ const TestPackageManagement = () => {
     const [editingPackage, setEditingPackage] = useState(null);
     const [deleteConfirmId, setDeleteConfirmId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [testSearchTerm, setTestSearchTerm] = useState('');
 
     // Form state
     const [formData, setFormData] = useState({
@@ -28,36 +29,61 @@ const TestPackageManagement = () => {
         packageCode: '',
         description: '',
         departmentId: '',
-        // packagePrice: '', // COMMENTED OUT: Using calculated sum instead
         includedTests: [],
         isActive: true
     });
-
     const [formErrors, setFormErrors] = useState({});
 
+    // Pagination state
+    const [page, setPage] = useState(1);
+    const [limit] = useState(10);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalRecords, setTotalRecords] = useState(0);
+    const searchDebounceRef = useRef(null);
+
     useEffect(() => {
-        fetchPackages();
         fetchTests();
         fetchDepartments();
     }, []);
 
-    const fetchPackages = async () => {
+    // Re-fetch whenever page changes
+    useEffect(() => {
+        fetchPackages(page, searchTerm);
+    }, [page]);
+
+    const fetchPackages = useCallback(async (currentPage = page, search = searchTerm) => {
         try {
             setLoading(true);
-            const response = await getTestPackages();
-            setPackages(response.data || []);
+            const params = { page: currentPage, limit };
+            if (search?.trim()) params.search = search.trim();
+
+            const response = await getTestPackages(params);
+            const payload = response.data;
+            if (payload && typeof payload === 'object' && 'data' in payload) {
+                setPackages(payload.data || []);
+                setTotalRecords(payload.totalRecords || 0);
+                setTotalPages(payload.totalPages || 1);
+            } else {
+                setPackages(Array.isArray(payload) ? payload : []);
+            }
         } catch (error) {
             showToast('Failed to fetch test packages', 'error');
             console.error(error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [limit]);
 
     const fetchTests = async () => {
         try {
-            const response = await getLabTests();
-            setTests(response.data || response.tests || []);
+            // Fetch all tests (no pagination limit) for the form checkboxes
+            const response = await getLabTests({ limit: 100 });
+            const payload = response.data;
+            if (payload && typeof payload === 'object' && 'data' in payload) {
+                setTests(payload.data || []);
+            } else {
+                setTests(Array.isArray(payload) ? payload : []);
+            }
         } catch (error) {
             console.error('Failed to fetch tests:', error);
         }
@@ -157,6 +183,7 @@ const TestPackageManagement = () => {
         setFormErrors({});
         setEditingPackage(null);
         setShowForm(false);
+        setTestSearchTerm('');
     };
 
     const toggleTestSelection = (testId) => {
@@ -175,10 +202,23 @@ const TestPackageManagement = () => {
         }, 0);
     };
 
-    const filteredPackages = packages.filter(pkg =>
-        pkg.packageName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pkg.packageCode?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const handleSearchChange = (e) => {
+        const value = e.target.value;
+        setSearchTerm(value);
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = setTimeout(() => {
+            setPage(1);
+            fetchPackages(1, value);
+        }, 400);
+    };
+
+    const goToPage = (newPage) => {
+        if (newPage < 1 || newPage > totalPages) return;
+        setPage(newPage);
+    };
+
+    // Server already filters — packages is the current page result
+    const filteredPackages = packages;
 
     return (
         <div className="space-y-6">
@@ -207,7 +247,7 @@ const TestPackageManagement = () => {
                     type="text"
                     placeholder="Search packages..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={handleSearchChange}
                     className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
             </div>
@@ -287,7 +327,58 @@ const TestPackageManagement = () => {
                 </div>
             )}
 
-            {/* Form Modal */}
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between px-2 py-4">
+                    <p className="text-sm text-slate-500">
+                        Page <span className="font-semibold text-slate-700">{page}</span> of{' '}
+                        <span className="font-semibold text-slate-700">{totalPages}</span>
+                        {' '}— {totalRecords} total packages
+                    </p>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => goToPage(page - 1)}
+                            disabled={page <= 1}
+                            className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+
+                        {Array.from({ length: totalPages }, (_, i) => i + 1)
+                            .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                            .reduce((acc, p, idx, arr) => {
+                                if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...');
+                                acc.push(p);
+                                return acc;
+                            }, [])
+                            .map((item, idx) =>
+                                item === '...' ? (
+                                    <span key={`ellipsis-${idx}`} className="px-2 text-slate-400 text-sm">…</span>
+                                ) : (
+                                    <button
+                                        key={item}
+                                        onClick={() => goToPage(item)}
+                                        className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${item === page
+                                            ? 'bg-indigo-600 text-white shadow-sm'
+                                            : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                                            }`}
+                                    >
+                                        {item}
+                                    </button>
+                                )
+                            )
+                        }
+
+                        <button
+                            onClick={() => goToPage(page + 1)}
+                            disabled={page >= totalPages}
+                            className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
+                </div>
+            )}
             {showForm && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -370,21 +461,46 @@ const TestPackageManagement = () => {
                                 <label className="block text-sm font-bold text-slate-700 mb-2">
                                     Included Tests * ({formData.includedTests.length} selected)
                                 </label>
+                                {/* Search inside test list */}
+                                <div className="relative mb-2">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search tests..."
+                                        value={testSearchTerm}
+                                        onChange={(e) => setTestSearchTerm(e.target.value)}
+                                        className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                    />
+                                </div>
                                 <div className="border border-slate-300 rounded-lg p-4 max-h-64 overflow-y-auto">
-                                    {tests.map(test => (
-                                        <label key={test._id} className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-lg cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={formData.includedTests.includes(test._id)}
-                                                onChange={() => toggleTestSelection(test._id)}
-                                                className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
-                                            />
-                                            <div className="flex-1">
-                                                <span className="font-medium text-slate-800">{test.testName}</span>
-                                                <span className="text-sm text-slate-500 ml-2">₹{test.price}</span>
-                                            </div>
-                                        </label>
-                                    ))}
+                                    {tests
+                                        .filter(test =>
+                                            !testSearchTerm.trim() ||
+                                            test.testName?.toLowerCase().includes(testSearchTerm.toLowerCase()) ||
+                                            test.testCode?.toLowerCase().includes(testSearchTerm.toLowerCase())
+                                        )
+                                        .map(test => (
+                                            <label key={test._id} className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-lg cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.includedTests.includes(test._id)}
+                                                    onChange={() => toggleTestSelection(test._id)}
+                                                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                                                />
+                                                <div className="flex-1">
+                                                    <span className="font-medium text-slate-800">{test.testName}</span>
+                                                    <span className="text-sm text-slate-500 ml-2">₹{test.price}</span>
+                                                </div>
+                                            </label>
+                                        ))
+                                    }
+                                    {tests.filter(test =>
+                                        !testSearchTerm.trim() ||
+                                        test.testName?.toLowerCase().includes(testSearchTerm.toLowerCase()) ||
+                                        test.testCode?.toLowerCase().includes(testSearchTerm.toLowerCase())
+                                    ).length === 0 && (
+                                            <p className="text-center text-slate-400 py-4 text-sm">No tests found</p>
+                                        )}
                                 </div>
                                 {formErrors.includedTests && (
                                     <p className="text-red-500 text-sm mt-1">{formErrors.includedTests}</p>

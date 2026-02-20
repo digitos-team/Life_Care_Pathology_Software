@@ -23,9 +23,9 @@ export const createTest = asyncHandler(async (req, res) => {
 // 2. Get all active tests (with optional filters)
 export const getAllTests = asyncHandler(async (req, res) => {
     const labId = req.user.labId;
-    const { departmentId, search } = req.query;
+    const { departmentId, search, page, limit } = req.query;
 
-    const tests = await testService.getAllTests(labId, { departmentId, search });
+    const tests = await testService.getAllTests(labId, { departmentId, search }, page, limit);
 
     res.status(200).json(
         new ApiResponse(200, tests, "Tests fetched successfully")
