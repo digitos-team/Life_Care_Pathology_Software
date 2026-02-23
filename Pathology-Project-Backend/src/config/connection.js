@@ -1,16 +1,14 @@
 import mongoose from "mongoose";
-import { DB_Name } from "../constant.js";
 
 export const connectDB = async () => {
   try {
-    const connectionInstance = await mongoose.connect(
-      "mongodb://localhost:27017/" + DB_Name + "?replicaSet=rs0"
-    );
+    const connectionInstance = await mongoose.connect(process.env.MONGODB_URI);
     console.log(
-      `Database Connected To ${DB_Name} hosted by ${connectionInstance.connection.host}`
+      `✅ Database Connected | Host: ${connectionInstance.connection.host} | DB: ${connectionInstance.connection.name}`
     );
   } catch (err) {
-    console.log(err);
+    console.error("Database Connection Failed:", err.message);
     process.exit(1);
   }
 };
+
