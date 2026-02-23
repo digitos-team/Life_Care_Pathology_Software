@@ -91,7 +91,7 @@ export const updateTest = {
     category: Joi.string()
       .valid(...categoryEnum)
       .optional(),
-    price: Joi.number().positive().optional(),
+    price: Joi.number().min(0).optional(),
     parameters: Joi.array().items(parameterSchema).min(1).optional(),
     specializationIds: Joi.array().items(Joi.string()).optional(),
     status: Joi.string().optional(),

@@ -20,7 +20,14 @@ const DepartmentTests = ({ department, onBack }) => {
         try {
             setLoading(true);
             const response = await getLabTests({ departmentId: department._id });
-            setTests(response.data || response.tests || []);
+            // API returns paginated: { data: { data: [...], totalRecords, ... } }
+            // or legacy array format
+            const payload = response.data;
+            if (payload && typeof payload === 'object' && 'data' in payload) {
+                setTests(payload.data || []);
+            } else {
+                setTests(Array.isArray(payload) ? payload : Array.isArray(response) ? response : []);
+            }
         } catch (err) {
             console.error('Failed to fetch department tests:', err);
             showToast('Failed to load tests', 'error');
@@ -28,6 +35,7 @@ const DepartmentTests = ({ department, onBack }) => {
             setLoading(false);
         }
     };
+
 
     const formatCurrency = (amount) =>
         new Intl.NumberFormat('en-IN', {
@@ -131,8 +139,8 @@ const DepartmentTests = ({ department, onBack }) => {
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${test.category === 'RADIOLOGY'
-                                                    ? 'bg-purple-100 text-purple-700'
-                                                    : 'bg-blue-100 text-blue-700'
+                                                ? 'bg-purple-100 text-purple-700'
+                                                : 'bg-blue-100 text-blue-700'
                                                 }`}>
                                                 {test.category || 'PATHOLOGY'}
                                             </span>
@@ -150,8 +158,8 @@ const DepartmentTests = ({ department, onBack }) => {
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${test.isActive !== false
-                                                    ? 'bg-green-100 text-green-700'
-                                                    : 'bg-red-100 text-red-600'
+                                                ? 'bg-green-100 text-green-700'
+                                                : 'bg-red-100 text-red-600'
                                                 }`}>
                                                 {test.isActive !== false ? '● Active' : '● Inactive'}
                                             </span>
