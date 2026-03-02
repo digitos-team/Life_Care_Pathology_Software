@@ -18,7 +18,6 @@ import testPackageRoutes from "./routes/testpackage.routes.js";
 
 import { errorHandler } from "./middleware/errorHandler.middleware.js";
 import cookieParser from "cookie-parser";
-import mongoSanitize from "express-mongo-sanitize";
 import path from "path";
 export const app = express();
 
@@ -40,8 +39,6 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static("public")); // Serve files from public directory
 app.use("/uploads", express.static("uploads")); // Serve uploaded files (reports)
 app.use(cookieParser());
-// Sanitize user input — prevent MongoDB injection attacks
-app.use(mongoSanitize());
 // Routes
 app.use("/api/user", userRoutes);
 // app.use("/api/admin", adminRoutes);

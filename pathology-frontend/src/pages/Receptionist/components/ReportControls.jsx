@@ -110,22 +110,12 @@ const ReportControls = ({
                             if (!selectedPatient?.phone) return;
                             const phone = selectedPatient.phone;
                             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+                            // Use saved PDF path if available, otherwise use the download API endpoint
                             const downloadLink = reportData?.patientId?.reportPdfPath
                                 ? `${apiUrl}${reportData.patientId.reportPdfPath}`
-                                : '';
-                            console.log('WhatsApp Debug:', {
-                                reportData,
-                                reportPdfPath: reportData?.patientId?.reportPdfPath,
-                                downloadLink,
-                                apiUrl
-                            });
+                                : `${apiUrl}/api/tests/${reportData._id}/download`;
 
-                            let message;
-                            if (downloadLink) {
-                                message = `Hello ${selectedPatient.fullName}, here is your pathology report.\n\nDownload Report: ${downloadLink}`;
-                            } else {
-                                message = `Hello ${selectedPatient.fullName}, here is your pathology report. Please download the report first to get a shareable link.`;
-                            }
+                            let message = `Hello ${selectedPatient.fullName}, here is your pathology report.\n\nDownload Report: ${downloadLink}`;
 
                             const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`;
                             window.open(whatsappUrl, '_blank');

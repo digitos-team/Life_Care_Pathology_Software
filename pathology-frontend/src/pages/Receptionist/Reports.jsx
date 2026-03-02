@@ -265,11 +265,12 @@ const ReportsPage = () => {
         }
 
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        // Use saved PDF path if available, otherwise use the download API endpoint
         const downloadLink = patient?.reportPdfPath
             ? `${apiUrl}${patient.reportPdfPath}`
-            : '';
+            : `${apiUrl}/api/tests/${report._id}/download`;
 
-        const message = `Hello ${patient.fullName}, here is your pathology report.${downloadLink ? `\n\nDownload Report: ${downloadLink}` : ' Please find the attached PDF.'}`;
+        const message = `Hello ${patient.fullName}, here is your pathology report.\n\nDownload Report: ${downloadLink}`;
         const whatsappUrl = `https://wa.me/91${patient.phone}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
     };
