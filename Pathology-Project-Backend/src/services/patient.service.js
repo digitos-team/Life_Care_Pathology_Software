@@ -12,29 +12,26 @@ const getLabIdByOwner = async (userId) => {
 };
 
 
-// Helper to generate Patient ID
+// Helper to generate Patient ID (auto-increment starting from 1)
 const generatePatientId = async () => {
-  // Use aggregation to compute numeric part and get max without scanning all documents into app memory
   const res = await Patient.aggregate([
     { $match: { patientId: { $exists: true, $ne: "" } } },
     {
       $project: {
-        codeStr: "$patientId",
-        // Remove PAT prefix if present, else keep original
         numericPart: {
           $toInt: {
             $cond: [
+              // Handle old "PATxxx" format
+              { $regexMatch: { input: "$patientId", regex: /^PAT(\d+)$/ } },
+              { $replaceOne: { input: "$patientId", find: "PAT", replacement: "" } },
+              // Handle pure numeric format
               {
-                $regexMatch: { input: "$patientId", regex: /^PAT(\d+)$/ },
+                $cond: [
+                  { $regexMatch: { input: "$patientId", regex: /^\d+$/ } },
+                  "$patientId",
+                  "0",
+                ],
               },
-              {
-                $replaceOne: {
-                  input: "$patientId",
-                  find: "PAT",
-                  replacement: "",
-                },
-              },
-              "0",
             ],
           },
         },
@@ -43,10 +40,8 @@ const generatePatientId = async () => {
     { $group: { _id: null, maxNum: { $max: "$numericPart" } } },
   ]);
 
-  const maxNumber = res[0]?.maxNum || 100; // default baseline
-  const nextNumber = maxNumber + 1;
-  const formatted = String(nextNumber).padStart(3, "0");
-  return `PAT${formatted}`;
+  const maxNumber = res[0]?.maxNum || 0;
+  return String(maxNumber + 1);
 };
 
 
