@@ -5,7 +5,6 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 // Register Patient
 export const createPatient = asyncHandler(async (req, res) => {
-  console.log("[CONTROLLER] createPatient", req.body);
   const labId = req.user.labId;
   if (!labId) {
     throw new ApiError(

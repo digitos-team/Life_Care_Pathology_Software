@@ -662,9 +662,18 @@ export const submitBulkResultsByBill = async (
     if (testItem.status === "COMPLETED") return;
 
     const masterDef = labTestMap[testItem.testId.toString()];
+    const testItemIdStr = testItem._id.toString();
+    const testIdStr = testItem.testId.toString();
 
     let testModified = false;
     results?.forEach((inputResult) => {
+      // If the result specifies a testItemId, only match it to the correct test
+      if (inputResult.testItemId) {
+        if (inputResult.testItemId !== testItemIdStr && inputResult.testItemId !== testIdStr) {
+          return; // This result belongs to a different test — skip
+        }
+      }
+
       const paramIndex = findParameterIndex(testItem.results, inputResult.parameterName);
       if (paramIndex !== -1) {
         const param = testItem.results[paramIndex];

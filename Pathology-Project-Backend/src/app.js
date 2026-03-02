@@ -18,25 +18,19 @@ import testPackageRoutes from "./routes/testpackage.routes.js";
 
 import { errorHandler } from "./middleware/errorHandler.middleware.js";
 import cookieParser from "cookie-parser";
+import mongoSanitize from "express-mongo-sanitize";
 import path from "path";
 export const app = express();
 
 
-// Request logging middleware
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
-  next();
-});
-
-
 // CORS configuration
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
+  : ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"];
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:3000",
-    ],
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     credentials: true,
   })
@@ -46,6 +40,8 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static("public")); // Serve files from public directory
 app.use("/uploads", express.static("uploads")); // Serve uploaded files (reports)
 app.use(cookieParser());
+// Sanitize user input — prevent MongoDB injection attacks
+app.use(mongoSanitize());
 // Routes
 app.use("/api/user", userRoutes);
 // app.use("/api/admin", adminRoutes);

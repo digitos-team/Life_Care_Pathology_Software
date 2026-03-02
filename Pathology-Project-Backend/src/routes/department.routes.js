@@ -3,7 +3,6 @@ import { Router } from "express";
 
 import { authMiddleware } from "../middleware/user.middleware.js";
 import { createDepartment, deleteDepartment, getDepartmentById, getDepartments, updateDepartment, searchDepartment } from "../controllers/department.controller.js";
-console.log("✅ department.routes.js loaded");
 const router = Router();
 
 

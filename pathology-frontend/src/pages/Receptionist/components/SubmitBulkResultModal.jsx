@@ -7,7 +7,7 @@ import { useToast } from '../../../contexts/ToastContext';
 const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
     const { showToast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
-    const [results, setResults] = useState({}); // Map of parameterName -> value
+    const [results, setResults] = useState({}); // Map of testItemId::parameterName -> value
     const [displayTests, setDisplayTests] = useState([]); // Local state for tests with updated definitions
 
     /**
@@ -60,14 +60,13 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
                 const initialResults = {};
 
                 // 1. Prepare initial results from snapshot
+                // Use composite key testItemId::parameterName to keep each test's values independent
                 order.tests.forEach(test => {
+                    const testItemId = test._id || test.testId;
                     if (test.results) {
                         test.results.forEach(param => {
-                            if (param.value) {
-                                initialResults[param.parameterName] = param.value;
-                            } else {
-                                initialResults[param.parameterName] = '';
-                            }
+                            const key = `${testItemId}::${param.parameterName}`;
+                            initialResults[key] = param.value || '';
                         });
                     }
                 });
@@ -130,10 +129,11 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
 
     if (!isOpen || !order) return null;
 
-    const handleResultChange = (paramName, value) => {
+    const handleResultChange = (testItemId, paramName, value) => {
+        const key = `${testItemId}::${paramName}`;
         setResults(prev => ({
             ...prev,
-            [paramName]: value
+            [key]: value
         }));
     };
 
@@ -142,10 +142,14 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
 
         const resultsArray = Object.entries(results)
             .filter(([_, value]) => value && value.trim() !== '')
-            .map(([parameterName, value]) => ({
-                parameterName,
-                value
-            }));
+            .map(([compositeKey, value]) => {
+                const separatorIndex = compositeKey.indexOf('::');
+                return {
+                    testItemId: compositeKey.substring(0, separatorIndex),
+                    parameterName: compositeKey.substring(separatorIndex + 2),
+                    value
+                };
+            });
 
         if (resultsArray.length === 0) {
             showToast('Please enter at least one result value', 'error');
@@ -289,7 +293,9 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
                             {test.parameters && test.parameters.length > 0 ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {test.parameters.map((param, paramIndex) => {
-                                        const currentValue = results[param.parameterName] || '';
+                                        const testItemId = test._id || test.testId;
+                                        const compositeKey = `${testItemId}::${param.parameterName}`;
+                                        const currentValue = results[compositeKey] || '';
                                         const validation = validateResult(currentValue, param);
                                         const isAbnormal = validation.status === 'abnormal';
                                         const rt = param.resultType || 'NUMERIC';
@@ -304,7 +310,7 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
                                                     {rt === 'QUALITATIVE' && param.qualitativeOptions?.options?.length ? (
                                                         <select
                                                             value={currentValue}
-                                                            onChange={(e) => handleResultChange(param.parameterName, e.target.value)}
+                                                            onChange={(e) => handleResultChange(testItemId, param.parameterName, e.target.value)}
                                                             className={`flex-1 px-3 py-2 border rounded-lg text-sm font-medium outline-none transition-all ${isAbnormal
                                                                 ? 'bg-white border-red-300 text-red-700 focus:ring-2 focus:ring-red-200 focus:border-red-400'
                                                                 : 'bg-white border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'
@@ -319,7 +325,7 @@ const SubmitBulkResultModal = ({ isOpen, onClose, order, onSuccess }) => {
                                                         <input
                                                             type="text"
                                                             value={currentValue}
-                                                            onChange={(e) => handleResultChange(param.parameterName, e.target.value)}
+                                                            onChange={(e) => handleResultChange(testItemId, param.parameterName, e.target.value)}
                                                             placeholder="Value"
                                                             className={`flex-1 px-3 py-2 border rounded-lg text-sm font-medium outline-none transition-all ${isAbnormal
                                                                 ? 'bg-white border-red-300 text-red-700 focus:ring-2 focus:ring-red-200 focus:border-red-400'

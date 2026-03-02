@@ -36,17 +36,7 @@ import TestOrder from "../models/testorder.model.js";
  * 1. Create Test Order (assign multiple tests)
  */
 export const createTestOrderController = asyncHandler(async (req, res) => {
-  console.log('createTestOrderController - Request body:', JSON.stringify(req.body, null, 2));
-
   const { patientId, testIds = [], packageIds = [], doctorId, discountId } = req.body || {};
-
-  console.log('createTestOrderController - Extracted values:', {
-    patientId,
-    testIdsCount: testIds.length,
-    packageIdsCount: packageIds.length,
-    doctorId,
-    discountId
-  });
 
   const labId = req.user.labId;
   if (!labId) {
@@ -319,8 +309,6 @@ export const downloadTestReportPDFController = asyncHandler(
       reportPdfPath: reportPdfPath,
       reportStatus: "generated",
     });
-
-    console.log("Report generated & saved:", reportPdfPath);
 
     // Send to response
     res.setHeader("Content-Type", "application/pdf");

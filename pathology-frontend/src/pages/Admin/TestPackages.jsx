@@ -77,7 +77,7 @@ const TestPackageManagement = () => {
     const fetchTests = async () => {
         try {
             // Fetch all tests (no pagination limit) for the form checkboxes
-            const response = await getLabTests({ limit: 100 });
+            const response = await getLabTests({ limit: 'all' });
             const payload = response.data;
             if (payload && typeof payload === 'object' && 'data' in payload) {
                 setTests(payload.data || []);

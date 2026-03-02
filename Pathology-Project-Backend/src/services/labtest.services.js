@@ -47,10 +47,14 @@ class TestService {
 
   async getAllTests(labId, filters = {}, page = 1, limit = 10) {
 
-    page = parseInt(page) || 1;
-    limit = parseInt(limit) || 10;
-    limit = limit > 10 ? 10 : limit;
-    const skip = (page - 1) * limit;
+    // Support limit='all' to fetch every test (used by Test Package form)
+    const fetchAll = limit === 'all';
+    if (!fetchAll) {
+      page = parseInt(page) || 1;
+      limit = parseInt(limit) || 10;
+      limit = limit > 10 ? 10 : limit;
+    }
+    const skip = fetchAll ? 0 : (page - 1) * limit;
     const { departmentId, search } = filters;
 
     // Build the query
@@ -64,13 +68,16 @@ class TestService {
       query.testName = { $regex: search, $options: "i" };
     }
 
-    const totalRecords = await Test.countDocuments(query)
-    const tests = await Test.find(query)
+    const totalRecords = await Test.countDocuments(query);
+    let testsQuery = Test.find(query)
       .populate("departmentId", "name")
-      .sort({ testName: 1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+      .sort({ testName: 1 });
+
+    if (!fetchAll) {
+      testsQuery = testsQuery.skip(skip).limit(limit);
+    }
+
+    const tests = await testsQuery.lean();
 
 
     // Fetch all specializations for these tests
@@ -93,16 +100,16 @@ class TestService {
       specializations: specsByTest[t._id.toString()] || []
     }));
 
-    const totalPages = Math.ceil(totalRecords / limit);
+    const totalPages = fetchAll ? 1 : Math.ceil(totalRecords / limit);
 
     return {
       data,
       totalRecords,
-      page,
-      limit,
+      page: fetchAll ? 1 : page,
+      limit: fetchAll ? totalRecords : limit,
       totalPages,
-      hasNextPage: page < totalPages,
-      hasPrevPage: page > 1,
+      hasNextPage: fetchAll ? false : page < totalPages,
+      hasPrevPage: fetchAll ? false : page > 1,
     }
   }
 

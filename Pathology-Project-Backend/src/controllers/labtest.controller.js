@@ -8,8 +8,6 @@ import labSchema from "../models/pathologyLab.model.js";
 // 1. Create new Test (Admin only)
 export const createTest = asyncHandler(async (req, res) => {
     const labId = req.user.labId;
-    console.log("CREATING TEST - Incoming Parameters:", JSON.stringify(req.body.parameters, null, 2));
-
     const test = await testService.createTest({
         ...req.body,
         labId: labId

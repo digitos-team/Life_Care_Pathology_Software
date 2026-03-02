@@ -46,8 +46,11 @@ export const getTestPackagesService = async (labId, filters = {}, page = 1, limi
 
     const query = { labId };
 
+    // Default to showing only active packages (hide soft-deleted ones)
     if (isActive !== undefined) {
         query.isActive = isActive;
+    } else {
+        query.isActive = true;
     }
 
     if (departmentId) {
